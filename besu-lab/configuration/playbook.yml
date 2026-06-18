@@ -1,0 +1,13 @@
+---
+- name: Prep baseline system configurations and TLS credentials
+  hosts: all
+  gather_facts: yes
+  roles:
+    - system_prep
+    - tls_distributor
+
+- name: Deploy, configure, and boot Hyperledger Besu nodes
+  hosts: all
+  gather_facts: yes
+  roles:
+    - besu_node

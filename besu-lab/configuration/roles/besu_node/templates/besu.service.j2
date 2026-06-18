@@ -1,0 +1,15 @@
+[Unit]
+Description=Hyperledger Besu Node
+After=network.target
+
+[Service]
+Type=simple
+User=besu
+Group=besu
+ExecStart=/opt/besu/bin/besu --config-file=/opt/besu/config.toml
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

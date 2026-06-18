@@ -1,0 +1,28 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+crash.log
+
+# Ansible
+*.retry
+*.log
+configuration/inventory/hosts.ini
+
+# Binaries and downloaded files
+*.tar.gz
+*.zip
+*.iso
+*.qcow2
+*.pem
+*.key
+*.pub
+besu-dist/
+node-keys/
+certs/
+
+# OS/Editor
+.DS_Store
+.idea/
+.vscode/

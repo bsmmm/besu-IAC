@@ -1,0 +1,73 @@
+---
+- name: Update apt cache and upgrade packages
+  apt:
+    update_cache: yes
+    upgrade: dist
+  become: yes
+
+- name: Install required baseline packages
+  apt:
+    name:
+      - chrony
+      - ufw
+      - tar
+      - unzip
+      - curl
+      - default-jre-headless # Besu requires Java runtime
+    state: present
+  become: yes
+
+- name: Ensure chrony service is running and enabled
+  service:
+    name: chrony
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Add mappings to /etc/hosts
+  blockinfile:
+    path: /etc/hosts
+    block: |
+      10.10.10.11 validator-1
+      10.10.10.12 validator-2
+      10.10.10.13 validator-3
+      10.10.10.14 validator-4
+      10.10.10.15 rpc-node
+  become: yes
+
+- name: Setup UFW firewall - default deny incoming and enable
+  ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+  become: yes
+
+- name: Allow SSH from any network to avoid lockout
+  ufw:
+    rule: allow
+    name: OpenSSH
+  become: yes
+
+- name: Allow Besu P2P port (30303) on 10.10.10.0/24
+  ufw:
+    rule: allow
+    src: 10.10.10.0/24
+    port: '30303'
+    proto: any
+  become: yes
+
+- name: Allow Besu RPC port (8545) on 10.10.10.0/24
+  ufw:
+    rule: allow
+    src: 10.10.10.0/24
+    port: '8545'
+    proto: tcp
+  become: yes
+
+- name: Allow Besu WebSockets port (8546) on 10.10.10.0/24
+  ufw:
+    rule: allow
+    src: 10.10.10.0/24
+    port: '8546'
+    proto: tcp
+  become: yes

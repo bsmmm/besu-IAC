@@ -1,0 +1,128 @@
+---
+- name: Hyperledger Besu Cluster Health Check
+  hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: Verify Chrony service status
+      systemd:
+        name: chrony
+      register: chrony_service
+      failed_when: not chrony_service.status.ActiveState == 'active'
+
+    - name: Gather Chrony tracking information
+      command: chronyc tracking
+      register: chrony_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Print Chrony status summary
+      debug:
+        msg: "{{ chrony_status.stdout_lines | default([]) }}"
+
+    - name: Verify Besu systemd service is active and enabled
+      systemd:
+        name: besu
+      register: besu_service_status
+      failed_when: not besu_service_status.status.ActiveState == 'active'
+
+    - name: Ensure Besu service is enabled
+      assert:
+        that:
+          - besu_service_status.status.UnitFileState == 'enabled'
+        fail_msg: "Besu systemd service is not enabled!"
+
+    - name: Check listening P2P/Discovery ports (30303 TCP/UDP)
+      wait_for:
+        port: 30303
+        state: started
+        timeout: 5
+        msg: "Port 30303 is not listening"
+
+    - name: Verify RPC Node Health
+      when: inventory_hostname == 'rpc-node'
+      block:
+        - name: Check JSON-RPC listening port (8545 TCP)
+          wait_for:
+            host: "{{ ansible_host }}"
+            port: 8545
+            state: started
+            timeout: 5
+            msg: "Port 8545 (JSON-RPC) is not listening"
+
+        - name: Query Peer Count from JSON-RPC
+          uri:
+            url: "https://{{ ansible_host }}:8545"
+            method: POST
+            headers:
+              Content-Type: application/json
+            body_format: json
+            body:
+              jsonrpc: "2.0"
+              method: net_peerCount
+              params: []
+              id: 1
+            validate_certs: no
+          register: rpc_peers
+          failed_when: rpc_peers.json.result is not defined or rpc_peers.json.result | int(base=16) < 4
+
+        - name: Print Peering Status
+          debug:
+            msg: "RPC Node is peered with {{ rpc_peers.json.result | int(base=16) }} nodes (Expected: 4)."
+
+        - name: Query Block Number (Initial Check)
+          uri:
+            url: "https://{{ ansible_host }}:8545"
+            method: POST
+            headers:
+              Content-Type: application/json
+            body_format: json
+            body:
+              jsonrpc: "2.0"
+              method: eth_blockNumber
+              params: []
+              id: 1
+            validate_certs: no
+          register: rpc_block_initial
+
+        - name: Print Initial Block Number
+          debug:
+            msg: "Initial Block Number: {{ rpc_block_initial.json.result }} (integer: {{ rpc_block_initial.json.result | int(base=16) }})"
+
+        - name: Wait for 5 seconds to observe consensus progress
+          pause:
+            seconds: 5
+
+        - name: Query Block Number (Progress Check)
+          uri:
+            url: "https://{{ ansible_host }}:8545"
+            method: POST
+            headers:
+              Content-Type: application/json
+            body_format: json
+            body:
+              jsonrpc: "2.0"
+              method: eth_blockNumber
+              params: []
+              id: 1
+            validate_certs: no
+          register: rpc_block_progress
+
+        - name: Print Progress Block Number
+          debug:
+            msg: "Progress Block Number: {{ rpc_block_progress.json.result }} (integer: {{ rpc_block_progress.json.result | int(base=16) }})"
+
+        - name: Validate block progression
+          assert:
+            that:
+              - rpc_block_progress.json.result | int(base=16) >= rpc_block_initial.json.result | int(base=16)
+            fail_msg: "Block number went backwards! Initial: {{ rpc_block_initial.json.result | int(base=16) }}, Progress: {{ rpc_block_progress.json.result | int(base=16) }}"
+
+        - name: Log consensus status
+          debug:
+            msg: >
+              {% if rpc_block_progress.json.result | int(base=16) > rpc_block_initial.json.result | int(base=16) %}
+              Consensus is actively progressing. Block height advanced from {{ rpc_block_initial.json.result | int(base=16) }} to {{ rpc_block_progress.json.result | int(base=16) }}.
+              {% else %}
+              Consensus is running, but no new block was minted in the last 5 seconds. Current block height is {{ rpc_block_progress.json.result | int(base=16) }}.
+              {% endif %}

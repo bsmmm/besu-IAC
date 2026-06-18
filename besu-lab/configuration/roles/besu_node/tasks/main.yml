@@ -1,0 +1,117 @@
+---
+- name: Create data directory
+  file:
+    path: /opt/besu/data
+    state: directory
+    owner: besu
+    group: besu
+    mode: '0755'
+  become: yes
+
+- name: Download Besu tarball
+  get_url:
+    url: "https://github.com/besu-eth/besu/releases/download/24.12.0/besu-24.12.0.tar.gz"
+    dest: "/tmp/besu-24.12.0.tar.gz"
+    checksum: "sha256:74d20b2a4b3da659f608d65c09ab95d2187dc2c54372d9f7330bf5190d5e7124"
+  become: yes
+
+- name: Create temporary extraction directory
+  file:
+    path: /tmp/besu-extracted
+    state: directory
+  become: yes
+
+- name: Extract Besu tarball
+  unarchive:
+    src: "/tmp/besu-24.12.0.tar.gz"
+    dest: "/tmp/besu-extracted"
+    remote_src: yes
+  become: yes
+
+- name: Copy bin and lib to /opt/besu
+  copy:
+    src: "/tmp/besu-extracted/besu-24.12.0/{{ item }}/"
+    dest: "/opt/besu/{{ item }}/"
+    remote_src: yes
+    owner: besu
+    group: besu
+  with_items:
+    - bin
+    - lib
+  become: yes
+
+- name: Generate genesis and keys locally on the controller
+  shell: python3 /tmp/generate_besu_config.py
+  delegate_to: localhost
+  run_once: true
+  register: gen_result
+  changed_when: "'Skipping regeneration' not in gen_result.stdout"
+
+- name: Copy genesis.json to all nodes
+  copy:
+    src: /tmp/besu-dist/genesis.json
+    dest: /opt/besu/genesis.json
+    owner: besu
+    group: besu
+    mode: '0644'
+  become: yes
+  register: genesis_copy
+
+- name: Clean previous blockchain database to avoid genesis hash mismatch
+  file:
+    path: /opt/besu/data/database
+    state: absent
+  become: yes
+  when: genesis_copy.changed
+
+- name: Copy validator private and public keys
+  copy:
+    src: "/tmp/besu-dist/{{ inventory_hostname }}/{{ item }}"
+    dest: "/opt/besu/data/{{ item }}"
+    owner: besu
+    group: besu
+    mode: '0600'
+  with_items:
+    - key
+    - key.pub
+  when: inventory_hostname in groups['validators']
+  become: yes
+
+- name: Slurp node public key for bootnode configuration
+  slurp:
+    src: /opt/besu/data/key.pub
+  register: slurped_pubkey
+  when: inventory_hostname in groups['validators']
+  become: yes
+
+- name: Set facts for key contents
+  set_fact:
+    node_pubkey: "{{ slurped_pubkey['content'] | b64decode | trim if inventory_hostname in groups['validators'] else '' }}"
+
+- name: Distribute node config.toml
+  template:
+    src: config.toml.j2
+    dest: /opt/besu/config.toml
+    owner: besu
+    group: besu
+    mode: '0644'
+  become: yes
+
+- name: Install systemd service
+  template:
+    src: besu.service.j2
+    dest: /etc/systemd/system/besu.service
+    mode: '0644'
+  become: yes
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Start and enable Besu service
+  service:
+    name: besu
+    state: started
+    enabled: yes
+  become: yes
