@@ -26,12 +26,12 @@ Vérifiez le nombre de pairs et la progression de la synchronisation depuis l'h�
 ```bash
 curl -k -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' \
-  https://10.10.10.15:8545
+  https://10.10.20.15:8545
 ```
 *(Note : `-k` ou `--insecure` est requis car les certificats TLS générés sont auto-signés).*
 
 ## 5. Nettoyage des clés d'hôte SSH
 Si les adresses IP des machines virtuelles changent ou sont réutilisées, supprimez les anciennes empreintes SSH :
 ```bash
-ssh-keygen -f "$HOME/.ssh/known_hosts" -R "10.10.10.11"
+ssh-keygen -f "$HOME/.ssh/known_hosts" -R "10.10.20.11"
 ```

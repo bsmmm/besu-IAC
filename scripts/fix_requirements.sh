@@ -57,9 +57,9 @@ cat <<EOF > "$ISOLATED_NET_XML"
   <name>isolated-lan</name>
   <bridge name='virbr1' stp='on' delay='0'/>
   <domain name='isolated.lan'/>
-  <ip address='10.10.10.1' netmask='255.255.255.0'>
+  <ip address='10.10.20.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='10.10.10.10' end='10.10.10.250'/>
+      <range start='10.10.20.10' end='10.10.20.250'/>
     </dhcp>
   </ip>
 </network>

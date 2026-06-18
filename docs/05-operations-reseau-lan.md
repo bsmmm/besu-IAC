@@ -34,7 +34,7 @@ graph TD
         
         subgraph Libvirt_Engine ["Démon de Virtualisation Libvirt"]
             Default_NAT["Commutateur NAT par Défaut\nvirbr0 | 192.168.122.1"]:::internal
-            Iso_LAN["Commutateur LAN Isolé\nvirbr1 | 10.10.10.1"]:::internal
+            Iso_LAN["Commutateur LAN Isolé\nvirbr1 | 10.10.20.1"]:::internal
         end
     end
 
@@ -80,9 +80,9 @@ La définition XML suivante établit les limites persistantes du back-end pour l
   <name>isolated-lan</name>
   <bridge name='virbr1' stp='on' delay='0'/>
   <domain name='isolated.lan'/>
-  <ip address='10.10.10.1' netmask='255.255.255.0'>
+  <ip address='10.10.20.1' netmask='255.255.255.0'>
     <dhcp>
-      <range start='10.10.10.10' end='10.10.10.250'/>
+      <range start='10.10.20.10' end='10.10.20.250'/>
     </dhcp>
   </ip>
 </network>
@@ -111,7 +111,7 @@ En ajoutant les sous-réseaux cibles directement à l'espace de configuration lo
 # Emplacement du chemin : ~/.ssh/config
 
 # Règles de raccourcis automatisés pour les réseaux virtuels locaux
-Host 192.168.122.* 10.10.10.*
+Host 192.168.122.* 10.10.20.*
     User debian
     IdentityFile ~/.ssh/id_ed25519_university
     IdentitiesOnly yes

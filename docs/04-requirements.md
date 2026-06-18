@@ -18,7 +18,7 @@ Le système hôte doit disposer des utilitaires suivants installés et configur�
 
 ## Interfaces Réseau
 - Un pont réseau actif `virbr0` configuré pour le réseau NAT par défaut (`192.168.122.0/24`).
-- Un pont réseau actif `virbr1` pour le réseau privé isolé (`10.10.10.0/24`) configuré sous le nom `isolated-lan`.
+- Un pont réseau actif `virbr1` pour le réseau privé isolé (`10.10.20.0/24`) configuré sous le nom `isolated-lan`.
 *(Pour plus de détails sur la configuration à double interface et la séquence d'activation du pont isolé, consultez le [Guide des Opérations Réseau LAN](05-operations-reseau-lan.md)).*
 
 
