@@ -40,8 +40,15 @@
     - lib
   become: yes
 
+- name: Download Besu tarball to localhost for configuration generation
+  get_url:
+    url: "https://github.com/besu-eth/besu/releases/download/24.12.0/besu-24.12.0.tar.gz"
+    dest: "/tmp/besu-24.12.0.tar.gz"
+  delegate_to: localhost
+  run_once: true
+
 - name: Generate genesis and keys locally on the controller
-  shell: python3 /tmp/generate_besu_config.py
+  shell: "python3 '{{ playbook_dir }}/../../scripts/generate_besu_config.py'"
   delegate_to: localhost
   run_once: true
   register: gen_result

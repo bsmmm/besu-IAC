@@ -64,7 +64,9 @@
               id: 1
             validate_certs: no
           register: rpc_peers
-          failed_when: rpc_peers.json.result is not defined or rpc_peers.json.result | int(base=16) < 4
+          until: rpc_peers.json is defined and rpc_peers.json.result is defined and rpc_peers.json.result | int(base=16) >= 4
+          retries: 10
+          delay: 5
 
         - name: Print Peering Status
           debug:
