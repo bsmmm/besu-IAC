@@ -10,9 +10,9 @@
 
 - name: Download Besu tarball
   get_url:
-    url: "https://github.com/besu-eth/besu/releases/download/24.12.0/besu-24.12.0.tar.gz"
-    dest: "/tmp/besu-24.12.0.tar.gz"
-    checksum: "sha256:74d20b2a4b3da659f608d65c09ab95d2187dc2c54372d9f7330bf5190d5e7124"
+    url: "https://github.com/besu-eth/besu/releases/download/{{ besu_version }}/besu-{{ besu_version }}.tar.gz"
+    dest: "/tmp/besu-{{ besu_version }}.tar.gz"
+    checksum: "{{ besu_tarball_checksum }}"
   become: yes
 
 - name: Create temporary extraction directory
@@ -23,14 +23,15 @@
 
 - name: Extract Besu tarball
   unarchive:
-    src: "/tmp/besu-24.12.0.tar.gz"
+    src: "/tmp/besu-{{ besu_version }}.tar.gz"
     dest: "/tmp/besu-extracted"
     remote_src: yes
+    creates: "/tmp/besu-extracted/besu-{{ besu_version }}/bin/besu"
   become: yes
 
 - name: Copy bin and lib to /opt/besu
   copy:
-    src: "/tmp/besu-extracted/besu-24.12.0/{{ item }}/"
+    src: "/tmp/besu-extracted/besu-{{ besu_version }}/{{ item }}/"
     dest: "/opt/besu/{{ item }}/"
     remote_src: yes
     owner: besu
@@ -42,13 +43,20 @@
 
 - name: Download Besu tarball to localhost for configuration generation
   get_url:
-    url: "https://github.com/besu-eth/besu/releases/download/24.12.0/besu-24.12.0.tar.gz"
-    dest: "/tmp/besu-24.12.0.tar.gz"
+    url: "https://github.com/besu-eth/besu/releases/download/{{ besu_version }}/besu-{{ besu_version }}.tar.gz"
+    dest: "/tmp/besu-{{ besu_version }}.tar.gz"
+    checksum: "{{ besu_tarball_checksum }}"
   delegate_to: localhost
   run_once: true
 
 - name: Generate genesis and keys locally on the controller
   shell: "python3 '{{ playbook_dir }}/../../scripts/generate_besu_config.py'"
+  environment:
+    BESU_LAB_VERSION: "{{ besu_version }}"
+    BESU_LAB_CHAIN_ID: "{{ besu_chain_id }}"
+    BESU_LAB_BLOCK_PERIOD_SECONDS: "{{ besu_block_period_seconds }}"
+    BESU_LAB_REQUEST_TIMEOUT_SECONDS: "{{ besu_request_timeout_seconds }}"
+    BESU_LAB_VALIDATOR_COUNT: "{{ groups['validators'] | length }}"
   delegate_to: localhost
   run_once: true
   register: gen_result
@@ -63,6 +71,7 @@
     mode: '0644'
   become: yes
   register: genesis_copy
+  notify: Restart besu
 
 - name: Clean previous blockchain database to avoid genesis hash mismatch
   file:
@@ -70,6 +79,7 @@
     state: absent
   become: yes
   when: genesis_copy.changed
+  notify: Restart besu
 
 - name: Copy validator private and public keys
   copy:
@@ -83,6 +93,7 @@
     - key.pub
   when: inventory_hostname in groups['validators']
   become: yes
+  notify: Restart besu
 
 - name: Slurp node public key for bootnode configuration
   slurp:
@@ -103,6 +114,7 @@
     group: besu
     mode: '0644'
   become: yes
+  notify: Restart besu
 
 - name: Install systemd service
   template:
@@ -110,11 +122,9 @@
     dest: /etc/systemd/system/besu.service
     mode: '0644'
   become: yes
-
-- name: Reload systemd daemon
-  systemd:
-    daemon_reload: yes
-  become: yes
+  notify:
+    - Reload systemd
+    - Restart besu
 
 - name: Start and enable Besu service
   service:

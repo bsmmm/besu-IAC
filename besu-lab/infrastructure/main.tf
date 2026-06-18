@@ -5,11 +5,24 @@ terraform {
       source  = "dmacvicar/libvirt"
       version = "~> 0.7.6"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
+    }
   }
 }
 
 provider "libvirt" {
   uri = "qemu:///system"
+}
+
+resource "libvirt_network" "cluster_lan" {
+  name      = var.cluster_network_name
+  mode      = "none"
+  bridge    = var.cluster_network_bridge
+  domain    = "besu.lan"
+  addresses = [var.cluster_network_cidr]
+  autostart = true
 }
 
 # Base image stored in default pool
@@ -84,9 +97,9 @@ resource "libvirt_domain" "nodes" {
     network_name = "default"
   }
 
-  # NIC 2 (enp2s0) -> isolated-lan (Static)
+  # NIC 2 (enp2s0) -> private Besu LAN (Static)
   network_interface {
-    network_name = "isolated-lan"
+    network_id = libvirt_network.cluster_lan.id
   }
 
   console {

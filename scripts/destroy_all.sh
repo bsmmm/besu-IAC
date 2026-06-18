@@ -30,16 +30,17 @@ log_error() {
     echo -e "${RED}[ERREUR]${NC} $1"
 }
 
-# Demande de confirmation à l'utilisateur
-read -p "Êtes-vous sûr de vouloir détruire TOUTE l'infrastructure du cluster Besu ? [o/N] : " choice
-case "$choice" in
-    [oO]|[yY]|[oO][uU][iI])
-        ;;
-    *)
-        log_info "Destruction annulée par l'utilisateur."
-        exit 0
-        ;;
-esac
+if [ "${FORCE_DESTROY:-}" != "1" ]; then
+    read -p "Êtes-vous sûr de vouloir détruire TOUTE l'infrastructure du cluster Besu ? [o/N] : " choice
+    case "$choice" in
+        [oO]|[yY]|[oO][uU][iI])
+            ;;
+        *)
+            log_info "Destruction annulée par l'utilisateur."
+            exit 0
+            ;;
+    esac
+fi
 
 # 1. Destruction de l'infrastructure via Terraform
 log_info "Étape 1/2 : Destruction des machines virtuelles avec Terraform..."
@@ -67,7 +68,14 @@ CLEAN_PATHS=(
 for path in "${CLEAN_PATHS[@]}"; do
     if [ -e "$path" ] || [ -d "$path" ]; then
         log_info "Suppression de : $path"
-        sudo rm -rf "$path"
+        if rm -rf "$path" 2>/dev/null; then
+            continue
+        fi
+        if sudo -n true 2>/dev/null; then
+            sudo rm -rf "$path"
+        else
+            log_warn "Impossible de supprimer $path sans privilèges sudo non interactifs."
+        fi
     fi
 done
 

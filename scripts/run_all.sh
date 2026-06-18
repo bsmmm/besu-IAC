@@ -115,17 +115,6 @@ check_requirements() {
         fi
     fi
 
-    # 7. Vérification du réseau 'isolated-lan' (Privé)
-    if command -v virsh &> /dev/null; then
-        if ! virsh -c qemu:///system net-info isolated-lan &> /dev/null || [ "$(virsh -c qemu:///system net-info isolated-lan | grep -E '^Active:' | awk '{print $2}')" != "yes" ]; then
-            if ! ask_and_fix "Le réseau virtuel libvirt 'isolated-lan' n'est pas configuré ou est inactif." "--isolated-net"; then
-                failures=$((failures + 1))
-            fi
-        else
-            log_success "Le réseau virtuel libvirt 'isolated-lan' est actif."
-        fi
-    fi
-
     return $failures
 }
 
@@ -149,12 +138,17 @@ log_success "Provisionnement de l'infrastructure terminé avec succès."
 # ÉTAPE 3 : Configuration du cluster avec Ansible
 # -----------------------------------------------------------------------------
 log_info "Nettoyage des anciennes clés SSH connues pour le cluster..."
-for ip in 10.10.10.11 10.10.10.12 10.10.10.13 10.10.10.14 10.10.10.15; do
+for ip in 10.10.10.11 10.10.10.12 10.10.10.13 10.10.10.14 10.10.10.15 10.10.20.11 10.10.20.12 10.10.20.13 10.10.20.14 10.10.20.15; do
     ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$ip" &>/dev/null || true
 done
 
 log_info "Étape 2/3 : Lancement de la configuration logicielle avec Ansible..."
 cd "$REPO_ROOT/besu-lab/configuration"
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-local}"
+export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-remote}"
+export ANSIBLE_SSH_CONTROL_PATH_DIR="${ANSIBLE_SSH_CONTROL_PATH_DIR:-/tmp/ansible-cp}"
+export ANSIBLE_SSH_ARGS="${ANSIBLE_SSH_ARGS:--F /dev/null -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null}"
+mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP" "$ANSIBLE_SSH_CONTROL_PATH_DIR"
 ansible-playbook -i inventory/hosts.ini playbook.yml
 
 log_success "Configuration logicielle et démarrage du cluster Besu terminés."
@@ -163,6 +157,6 @@ log_success "Configuration logicielle et démarrage du cluster Besu terminés."
 # ÉTAPE 4 : Vérification de l'état de santé du cluster
 # -----------------------------------------------------------------------------
 log_info "Étape 3/3 : Lancement des tests automatisés de santé du cluster..."
-ansible-playbook -i inventory/hosts.ini check.yml
+"$SCRIPTS_DIR/validate_cluster.sh"
 
 log_success "Toutes les étapes du déploiement ont été exécutées avec succès !"

@@ -1,0 +1,11 @@
+---
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Restart besu
+  service:
+    name: besu
+    state: restarted
+  become: yes

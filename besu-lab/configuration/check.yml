@@ -14,11 +14,17 @@
       command: chronyc tracking
       register: chrony_status
       changed_when: false
-      ignore_errors: yes
 
     - name: Print Chrony status summary
       debug:
         msg: "{{ chrony_status.stdout_lines | default([]) }}"
+
+    - name: Verify Chrony is synchronized
+      assert:
+        that:
+          - "'Leap status     : Normal' in chrony_status.stdout"
+          - "'Stratum         : 0' not in chrony_status.stdout"
+        fail_msg: "Chrony is running but not synchronized on {{ inventory_hostname }}."
 
     - name: Verify Besu systemd service is active and enabled
       systemd:
@@ -72,6 +78,27 @@
           debug:
             msg: "RPC Node is peered with {{ rpc_peers.json.result | int(base=16) }} nodes (Expected: 4)."
 
+        - name: Query Chain ID from JSON-RPC
+          uri:
+            url: "https://{{ ansible_host }}:8545"
+            method: POST
+            headers:
+              Content-Type: application/json
+            body_format: json
+            body:
+              jsonrpc: "2.0"
+              method: eth_chainId
+              params: []
+              id: 1
+            validate_certs: no
+          register: rpc_chain_id
+
+        - name: Validate Chain ID
+          assert:
+            that:
+              - rpc_chain_id.json.result | int(base=16) == besu_chain_id
+            fail_msg: "Unexpected chain ID {{ rpc_chain_id.json.result }}."
+
         - name: Query Block Number (Initial Check)
           uri:
             url: "https://{{ ansible_host }}:8545"
@@ -91,11 +118,7 @@
           debug:
             msg: "Initial Block Number: {{ rpc_block_initial.json.result }} (integer: {{ rpc_block_initial.json.result | int(base=16) }})"
 
-        - name: Wait for 5 seconds to observe consensus progress
-          pause:
-            seconds: 5
-
-        - name: Query Block Number (Progress Check)
+        - name: Query Block Number until consensus progresses
           uri:
             url: "https://{{ ansible_host }}:8545"
             method: POST
@@ -109,6 +132,9 @@
               id: 1
             validate_certs: no
           register: rpc_block_progress
+          until: rpc_block_progress.json is defined and rpc_block_progress.json.result is defined and (rpc_block_progress.json.result | int(base=16)) > (rpc_block_initial.json.result | int(base=16))
+          retries: 30
+          delay: 2
 
         - name: Print Progress Block Number
           debug:
@@ -117,14 +143,30 @@
         - name: Validate block progression
           assert:
             that:
-              - rpc_block_progress.json.result | int(base=16) >= rpc_block_initial.json.result | int(base=16)
-            fail_msg: "Block number went backwards! Initial: {{ rpc_block_initial.json.result | int(base=16) }}, Progress: {{ rpc_block_progress.json.result | int(base=16) }}"
+              - rpc_block_progress.json.result | int(base=16) > rpc_block_initial.json.result | int(base=16)
+            fail_msg: "Block number did not advance. Initial: {{ rpc_block_initial.json.result | int(base=16) }}, Progress: {{ rpc_block_progress.json.result | int(base=16) }}"
 
         - name: Log consensus status
           debug:
-            msg: >
-              {% if rpc_block_progress.json.result | int(base=16) > rpc_block_initial.json.result | int(base=16) %}
-              Consensus is actively progressing. Block height advanced from {{ rpc_block_initial.json.result | int(base=16) }} to {{ rpc_block_progress.json.result | int(base=16) }}.
-              {% else %}
-              Consensus is running, but no new block was minted in the last 5 seconds. Current block height is {{ rpc_block_progress.json.result | int(base=16) }}.
-              {% endif %}
+            msg: "Consensus is actively progressing. Block height advanced from {{ rpc_block_initial.json.result | int(base=16) }} to {{ rpc_block_progress.json.result | int(base=16) }}."
+
+        - name: Query Admin Peers from JSON-RPC
+          uri:
+            url: "https://{{ ansible_host }}:8545"
+            method: POST
+            headers:
+              Content-Type: application/json
+            body_format: json
+            body:
+              jsonrpc: "2.0"
+              method: admin_peers
+              params: []
+              id: 1
+            validate_certs: no
+          register: rpc_admin_peers
+
+        - name: Validate Admin Peers
+          assert:
+            that:
+              - rpc_admin_peers.json.result | length >= besu_expected_validator_count
+            fail_msg: "admin_peers did not return the expected validator peer set."

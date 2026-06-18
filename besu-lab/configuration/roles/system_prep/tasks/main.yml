@@ -24,15 +24,25 @@
     enabled: yes
   become: yes
 
+- name: Configure Chrony for isolated lab synchronization
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  notify: Restart chrony
+
 - name: Add mappings to /etc/hosts
   blockinfile:
     path: /etc/hosts
     block: |
-      10.10.10.11 validator-1
-      10.10.10.12 validator-2
-      10.10.10.13 validator-3
-      10.10.10.14 validator-4
-      10.10.10.15 rpc-node
+      10.10.20.11 validator-1
+      10.10.20.12 validator-2
+      10.10.20.13 validator-3
+      10.10.20.14 validator-4
+      10.10.20.15 rpc-node
   become: yes
 
 - name: Setup UFW firewall - default deny incoming and enable
@@ -48,26 +58,35 @@
     name: OpenSSH
   become: yes
 
-- name: Allow Besu P2P port (30303) on 10.10.10.0/24
+- name: Allow Besu P2P port (30303) on cluster LAN
   ufw:
     rule: allow
-    src: 10.10.10.0/24
+    src: "{{ cluster_cidr }}"
     port: '30303'
     proto: any
   become: yes
 
-- name: Allow Besu RPC port (8545) on 10.10.10.0/24
+- name: Allow Besu RPC port (8545) on cluster LAN
   ufw:
     rule: allow
-    src: 10.10.10.0/24
+    src: "{{ cluster_cidr }}"
     port: '8545'
     proto: tcp
   become: yes
 
-- name: Allow Besu WebSockets port (8546) on 10.10.10.0/24
+- name: Allow Besu WebSockets port (8546) on cluster LAN
   ufw:
     rule: allow
-    src: 10.10.10.0/24
+    src: "{{ cluster_cidr }}"
     port: '8546'
     proto: tcp
   become: yes
+
+- name: Allow Chrony/NTP from cluster LAN on the primary time source
+  ufw:
+    rule: allow
+    src: "{{ cluster_cidr }}"
+    port: '123'
+    proto: udp
+  become: yes
+  when: inventory_hostname == chrony_primary_host

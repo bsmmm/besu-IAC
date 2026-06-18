@@ -1,0 +1,17 @@
+# Managed by Ansible.
+
+{% if inventory_hostname == chrony_primary_host %}
+# The lab network can be isolated from the Internet. The first validator acts as
+# the cluster time authority so all Besu nodes share a consistent clock.
+local stratum 10 orphan
+allow {{ cluster_cidr }}
+{% else %}
+server {{ chrony_primary_ip }} iburst prefer
+{% endif %}
+
+driftfile /var/lib/chrony/chrony.drift
+makestep 1.0 3
+rtcsync
+leapseclist /usr/share/zoneinfo/leap-seconds.list
+logdir /var/log/chrony
+maxupdateskew 100.0

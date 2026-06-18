@@ -20,8 +20,22 @@
     creates: /opt/besu/certs/node.crt
   become: yes
 
+- name: Create keystore password file
+  shell: umask 077 && openssl rand -base64 32 > /opt/besu/certs/keystore.password
+  args:
+    creates: /opt/besu/certs/keystore.password
+  become: yes
+
+- name: Set correct permissions on keystore password
+  file:
+    path: /opt/besu/certs/keystore.password
+    owner: besu
+    group: besu
+    mode: '0600'
+  become: yes
+
 - name: Export certificate and key to PKCS12 keystore
-  command: openssl pkcs12 -export -in /opt/besu/certs/node.crt -inkey /opt/besu/certs/node.key -out /opt/besu/certs/keystore.p12 -name besu -passout pass:password
+  command: openssl pkcs12 -export -in /opt/besu/certs/node.crt -inkey /opt/besu/certs/node.key -out /opt/besu/certs/keystore.p12 -name besu -passout file:/opt/besu/certs/keystore.password
   args:
     creates: /opt/besu/certs/keystore.p12
   become: yes
@@ -29,15 +43,6 @@
 - name: Set correct permissions on keystore
   file:
     path: /opt/besu/certs/keystore.p12
-    owner: besu
-    group: besu
-    mode: '0600'
-  become: yes
-
-- name: Create keystore password file
-  copy:
-    content: "password"
-    dest: /opt/besu/certs/keystore.password
     owner: besu
     group: besu
     mode: '0600'
