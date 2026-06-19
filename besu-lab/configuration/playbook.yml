@@ -24,3 +24,15 @@
   gather_facts: yes
   roles:
     - besu_node
+
+- name: Fetch RPC node TLS certificate to the host
+  hosts: rpc
+  gather_facts: no
+  tasks:
+    - name: Fetch node.crt from rpc-node
+      fetch:
+        src: /opt/besu/certs/node.crt
+        dest: "{{ playbook_dir }}/../../monitoring/certs/rpc-node.crt"
+        flat: yes
+      become: yes
+

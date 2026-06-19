@@ -156,7 +156,22 @@ log_success "Configuration logicielle et démarrage du cluster Besu terminés."
 # -----------------------------------------------------------------------------
 # ÉTAPE 4 : Vérification de l'état de santé du cluster
 # -----------------------------------------------------------------------------
-log_info "Étape 3/3 : Lancement des tests automatisés de santé du cluster..."
+log_info "Étape 3/4 : Lancement des tests automatisés de santé du cluster..."
 "$SCRIPTS_DIR/validate_cluster.sh"
 
-log_success "Toutes les étapes du déploiement ont été exécutées avec succès !"
+# -----------------------------------------------------------------------------
+# ÉTAPE 5 : Démarrage et validation de la pile d'observabilité
+# -----------------------------------------------------------------------------
+log_info "Étape 4/4 : Démarrage de la pile d'observabilité..."
+"$SCRIPTS_DIR/start_monitoring.sh"
+
+log_info "Validation de la pile d'observabilité..."
+sleep 5
+"$SCRIPTS_DIR/validate_observability.sh"
+
+log_success "Toutes les étapes du déploiement (Cluster & Monitoring) ont été exécutées avec succès !"
+echo -e "\nServices Disponibles :"
+echo -e "  - Grafana Dashboards : http://localhost:3000"
+echo -e "  - Blockscout Explorer : http://localhost:4000"
+echo -e "  - Prometheus Target UI : http://localhost:9090"
+

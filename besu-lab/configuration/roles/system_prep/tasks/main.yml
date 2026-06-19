@@ -90,3 +90,116 @@
     proto: udp
   become: yes
   when: inventory_hostname == chrony_primary_host
+
+- name: Allow Node Exporter port on cluster LAN
+  ufw:
+    rule: allow
+    src: "{{ cluster_cidr }}"
+    port: "{{ node_exporter_port | string }}"
+    proto: tcp
+  become: yes
+
+- name: Allow process-exporter port on cluster LAN
+  ufw:
+    rule: allow
+    src: "{{ cluster_cidr }}"
+    port: "{{ process_exporter_port | string }}"
+    proto: tcp
+  become: yes
+
+- name: Allow Besu metrics port on cluster LAN
+  ufw:
+    rule: allow
+    src: "{{ cluster_cidr }}"
+    port: "{{ besu_metrics_port | string }}"
+    proto: tcp
+  become: yes
+
+- name: Install Node Exporter from apt
+  apt:
+    name: prometheus-node-exporter
+    state: present
+  become: yes
+
+- name: Ensure Node Exporter is running and enabled
+  service:
+    name: prometheus-node-exporter
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Download process-exporter binary
+  get_url:
+    url: "https://github.com/ncabatoff/process-exporter/releases/download/v0.8.2/process-exporter-0.8.2.linux-amd64.tar.gz"
+    dest: "/tmp/process-exporter.tar.gz"
+  become: yes
+
+- name: Create process-exporter directory
+  file:
+    path: /opt/process-exporter
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Extract process-exporter
+  unarchive:
+    src: "/tmp/process-exporter.tar.gz"
+    dest: "/opt/process-exporter"
+    remote_src: yes
+    extra_opts: [--strip-components=1]
+  become: yes
+
+- name: Create process-exporter config directory
+  file:
+    path: /etc/process-exporter
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Create process-exporter config file
+  copy:
+    dest: /etc/process-exporter/process-exporter.yml
+    mode: '0644'
+    content: |
+      process_names:
+        - name: besu
+          cmdline:
+            - 'besu'
+        - name: chronyd
+          cmdline:
+            - 'chronyd'
+        - name: sshd
+          cmdline:
+            - 'sshd'
+  become: yes
+  notify: Restart process-exporter
+
+- name: Install process-exporter systemd service
+  copy:
+    dest: /etc/systemd/system/process-exporter.service
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Prometheus Process Exporter
+      After=network.target
+
+      [Service]
+      User=root
+      ExecStart=/opt/process-exporter/process-exporter -config.path /etc/process-exporter/process-exporter.yml -web.listen-address :{{ process_exporter_port }}
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+  become: yes
+  notify:
+    - Reload systemd
+    - Restart process-exporter
+
+- name: Ensure process-exporter is started and enabled
+  service:
+    name: process-exporter
+    state: started
+    enabled: yes
+  become: yes
+
+

@@ -24,6 +24,12 @@ rpc-ws-api=["ETH","NET","WEB3","QBFT","ADMIN"]
 genesis-file="/opt/besu/genesis.json"
 data-path="/opt/besu/data"
 
+# Metrics
+metrics-enabled=true
+metrics-host="{{ ansible_host }}"
+metrics-port={{ besu_metrics_port }}
+
+
 # Bootnodes (All 4 Validators)
 bootnodes=[
 {% for host in groups['validators'] %}

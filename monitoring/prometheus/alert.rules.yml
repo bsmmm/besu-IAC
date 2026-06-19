@@ -1,0 +1,85 @@
+groups:
+  - name: besu-alerts
+    rules:
+      # CRITICAL ALERTS
+      - alert: BesuServiceDown
+        expr: up{job="besu"} == 0 or namedprocess_name_num_threads{groupname="besu"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Besu service is down on {{ $labels.instance }}"
+          description: "The Besu process is either unresponsive on port 9545 or the process exporter reported 0 threads."
+
+      - alert: ValidatorUnreachable
+        expr: up{job="node-exporter", instance=~"validator-.*:9100"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Validator node {{ $labels.instance }} is unreachable"
+          description: "Node exporter is down on validator node, indicating node offline or SSH failure."
+
+      - alert: RPCNodeUnreachable
+        expr: up{job="node-exporter", instance=~"rpc-node.*:9100"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RPC node is unreachable"
+          description: "Node exporter is down on RPC node, indicating node offline or network failure."
+
+      - alert: BlockProductionStopped
+        expr: delta(ethereum_blockchain_height[30s]) == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Blockchain block production has stopped"
+          description: "No new blocks have been produced in the last 30 seconds (expected block time is 2 seconds)."
+
+      - alert: LowPeerCount
+        expr: ethereum_peer_count < 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low peer count on {{ $labels.instance }}"
+          description: "The number of connected peers is {{ $value }}, which is below the expected minimum of 3."
+
+      # WARNING ALERTS
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is at {{ $value | printf \"%.2f\" }}%."
+
+      - alert: HighMemoryUsage
+        expr: 100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is at {{ $value | printf \"%.2f\" }}%."
+
+      - alert: HighDiskUsage
+        expr: 100 * (1 - (node_filesystem_free_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Root partition disk usage is at {{ $value | printf \"%.2f\" }}%."
+
+      - alert: ChronyUnsynchronized
+        expr: namedprocess_name_num_threads{groupname="chronyd"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chrony is not running on {{ $labels.instance }}"
+          description: "The chronyd process is dead. System time synchronization is at risk."

@@ -14,11 +14,37 @@
     creates: /opt/besu/certs/node.key
   become: yes
 
-- name: Generate self-signed certificate for TLS
-  command: openssl req -new -x509 -key /opt/besu/certs/node.key -out /opt/besu/certs/node.crt -days 365 -subj "/CN={{ inventory_hostname }}"
+- name: Check if node.crt exists
+  stat:
+    path: /opt/besu/certs/node.crt
+  register: node_crt_file
+  become: yes
+
+- name: Check if node.crt has CA:TRUE basic constraints
+  shell: openssl x509 -in /opt/besu/certs/node.crt -text -noout | grep -q "CA:TRUE"
+  register: ca_check
+  ignore_errors: yes
+  become: yes
+  changed_when: false
+  when: node_crt_file.stat.exists
+
+- name: Delete invalid non-CA certificate and keystore
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /opt/besu/certs/node.crt
+    - /opt/besu/certs/keystore.p12
+  when: node_crt_file.stat.exists and ca_check.rc is defined and ca_check.rc != 0
+  become: yes
+
+
+- name: Generate self-signed certificate for TLS with CA:TRUE basic constraints
+  command: openssl req -new -x509 -key /opt/besu/certs/node.key -out /opt/besu/certs/node.crt -days 365 -subj "/CN={{ inventory_hostname }}" -addext "basicConstraints=critical,CA:TRUE"
   args:
     creates: /opt/besu/certs/node.crt
   become: yes
+
 
 - name: Create keystore password file
   shell: umask 077 && openssl rand -base64 32 > /opt/besu/certs/keystore.password

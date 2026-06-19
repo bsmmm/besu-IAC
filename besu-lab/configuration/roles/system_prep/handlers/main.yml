@@ -4,3 +4,15 @@
     name: chrony
     state: restarted
   become: yes
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Restart process-exporter
+  service:
+    name: process-exporter
+    state: restarted
+  become: yes
+

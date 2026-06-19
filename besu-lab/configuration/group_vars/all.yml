@@ -9,3 +9,8 @@ besu_chain_id: 1337
 besu_block_period_seconds: 2
 besu_request_timeout_seconds: 4
 besu_expected_validator_count: 4
+
+node_exporter_port: 9100
+process_exporter_port: 9256
+besu_metrics_port: 9545
+

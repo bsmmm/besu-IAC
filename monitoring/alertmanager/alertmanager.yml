@@ -1,0 +1,17 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'log-receiver'
+
+receivers:
+  - name: 'log-receiver'
+    # Since we want to print to stdout/logs in Docker, we route to a webhook or simple setup.
+    # A webhook receiver pointing to a dummy or non-existing receiver outputs details to logs.
+    webhook_configs:
+      - url: 'http://localhost:9999/dummy-webhook'
+        send_resolved: true

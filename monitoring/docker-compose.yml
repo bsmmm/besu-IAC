@@ -1,0 +1,98 @@
+services:
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    extra_hosts:
+      - "validator-1:10.10.20.11"
+      - "validator-2:10.10.20.12"
+      - "validator-3:10.10.20.13"
+      - "validator-4:10.10.20.14"
+      - "rpc-node:10.10.20.15"
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro
+      - alertmanager_data:/data
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/data"
+
+  blockscout-db:
+    image: postgres:15-alpine
+    container_name: blockscout-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=blockscout
+    volumes:
+      - blockscout_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  blockscout:
+    image: blockscout/blockscout:6.8.0
+    container_name: blockscout
+    restart: unless-stopped
+    command: sh -c "bin/blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\" && bin/blockscout start"
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - ECTO_SSL_MODE=disable
+      - DATABASE_URL=postgresql://postgres:postgres@blockscout-db:5432/blockscout?ssl=false
+      - ETHEREUM_JSONRPC_VARIANT=besu
+      - ETHEREUM_JSONRPC_HTTP_URL=http://rpc-proxy:8545
+      - ETHEREUM_JSONRPC_WS_URL=ws://rpc-proxy:8546
+      - INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER=true
+      - INDEXER_DISABLE_BLOCK_REWARD_FETCHER=true
+      - INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER=true
+      - COIN=ETH
+    depends_on:
+      - blockscout-db
+      - rpc-proxy
+
+  rpc-proxy:
+    image: nginx:alpine
+    container_name: rpc-proxy
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "rpc-node:10.10.20.15"
+
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+  blockscout_db_data:
