@@ -43,3 +43,10 @@ monitoring:
   besu_metrics_port: 9545
   chrony_primary_host: "validator-1"
   chrony_primary_ip: "10.10.20.11"
+
+# Logging and Debugging Configuration
+logging:
+  ansible_log_path: "ansible.log"
+  terraform_log_level: "INFO"
+  terraform_log_path: "terraform.log"
+

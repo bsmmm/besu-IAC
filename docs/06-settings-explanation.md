@@ -45,3 +45,14 @@ Cette section contrôle les ports réseau des outils de collecte de métriques e
 * **`besu_metrics_port`** : Le port d'écoute natif exposé par Hyperledger Besu pour distribuer ses métriques au format Prometheus (ex. : `9545`).
 * **`chrony_primary_host`** : Le nom du nœud choisi pour servir de serveur NTP primaire interne (Chrony) pour garantir une synchronisation d'horloge parfaite entre tous les validateurs (ex. : `"validator-1"`).
 * **`chrony_primary_ip`** : L'adresse IP locale de ce serveur NTP primaire (ex. : `"10.10.20.11"`).
+
+---
+
+## 4. Section `logging` (Configuration des Journaux)
+
+Cette section permet de contrôler le niveau et l'emplacement des journaux d'exécution (logs) de Terraform et d'Ansible.
+
+* **`ansible_log_path`** : Le chemin du fichier où Ansible doit écrire son journal d'exécution (ex. : `"ansible.log"`).
+* **`terraform_log_level`** : Le niveau de verbosité des journaux de Terraform. Les valeurs possibles sont `"TRACE"`, `"DEBUG"`, `"INFO"`, `"WARN"`, `"ERROR"` ou `"OFF"` (ex. : `"INFO"`).
+* **`terraform_log_path`** : Le chemin du fichier où Terraform doit enregistrer ses journaux de provisionnement (ex. : `"terraform.log"`).
+

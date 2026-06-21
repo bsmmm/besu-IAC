@@ -174,12 +174,31 @@ for ip in 10.10.10.11 10.10.10.12 10.10.10.13 10.10.10.14 10.10.10.15 10.10.20.1
     ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$ip" &>/dev/null || true
 done
 
+# Parse logging settings using python helper
+get_setting() {
+    python3 -c "
+import yaml, os
+defaults = yaml.safe_load(open('$REPO_ROOT/config/settings.yml.default')) or {}
+user = yaml.safe_load(open('$REPO_ROOT/config/settings.yml')) if os.path.exists('$REPO_ROOT/config/settings.yml') else {}
+def get_val(d, u, keys):
+    if not keys: return d
+    k = keys[0]
+    val_d = d.get(k) if isinstance(d, dict) else None
+    val_u = u.get(k) if isinstance(u, dict) else None
+    if isinstance(val_d, dict):
+        return get_val(val_d, val_u or {}, keys[1:])
+    return val_u if val_u is not None else val_d
+print(get_val(defaults, user, '$1'.split('.')))
+"
+}
+
 log_info "Étape 2/3 : Lancement de la configuration logicielle avec Ansible..."
 cd "$REPO_ROOT/ansible"
 export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-local}"
 export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-remote}"
 export ANSIBLE_SSH_CONTROL_PATH_DIR="${ANSIBLE_SSH_CONTROL_PATH_DIR:-/tmp/ansible-cp}"
 export ANSIBLE_SSH_ARGS="${ANSIBLE_SSH_ARGS:--F /dev/null -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null}"
+export ANSIBLE_LOG_PATH="$(get_setting 'logging.ansible_log_path')"
 mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP" "$ANSIBLE_SSH_CONTROL_PATH_DIR"
 ansible-playbook -i inventory/hosts.ini playbook.yml
 
