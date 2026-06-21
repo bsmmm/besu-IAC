@@ -5,7 +5,7 @@ SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
 # Aller dans le dossier infrastructure de besu-lab
-cd "$REPO_ROOT/besu-lab/infrastructure"
+cd "$REPO_ROOT/terraform"
 
 # Enable Terraform logging
 export TF_LOG=INFO

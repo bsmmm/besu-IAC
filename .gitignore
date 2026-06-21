@@ -1,15 +1,15 @@
 # Terraform
-besu-lab/infrastructure/.terraform/
-besu-lab/infrastructure/*.tfstate
-besu-lab/infrastructure/*.tfstate.backup
-besu-lab/infrastructure/.terraform.lock.hcl
-besu-lab/infrastructure/crash.log
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/crash.log
 
 # Ansible
 *.retry
 *.log
-besu-lab/configuration/inventory/hosts.ini
-besu-lab/configuration/.vault_pass
+ansible/inventory/hosts.ini
+ansible/.vault_pass
 
 # Binaries and downloaded files
 *.tar.gz
@@ -19,14 +19,12 @@ besu-lab/configuration/.vault_pass
 *.pem
 *.key
 *.pub
-besu-lab/besu-dist/
-besu-lab/node-keys/
-besu-lab/certs/
 
 # OS/Editor
 .DS_Store
 .idea/
 .vscode/
 
-# Local plans / todo
-besu-lab/todo/
+# Local configuration overrides
+config/settings.yml
+

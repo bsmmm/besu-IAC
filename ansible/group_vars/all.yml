@@ -1,0 +1,27 @@
+---
+# Load the unified settings files (default and user override)
+default_settings: "{{ lookup('file', playbook_dir + '/../config/settings.yml.default') | from_yaml }}"
+user_settings_content: "{{ lookup('file', playbook_dir + '/../config/settings.yml', errors='ignore') | default('{}', true) }}"
+user_settings: "{{ (user_settings_content | from_yaml) or {} }}"
+
+# Deep merge user settings into default settings
+global_settings: "{{ default_settings | combine(user_settings, recursive=True) }}"
+
+# Infrastructure mappings
+cluster_cidr: "{{ global_settings.infrastructure.network.cidr }}"
+
+# Blockchain settings
+besu_version: "{{ global_settings.besu.version }}"
+besu_tarball_checksum: "{{ global_settings.besu.tarball_checksum }}"
+besu_chain_id: "{{ global_settings.besu.chain_id }}"
+besu_block_period_seconds: "{{ global_settings.besu.block_period_seconds }}"
+besu_request_timeout_seconds: "{{ global_settings.besu.request_timeout_seconds }}"
+besu_expected_validator_count: "{{ global_settings.infrastructure.nodes | selectattr('role', 'equalto', 'validator') | list | length }}"
+
+# Monitoring settings
+node_exporter_port: "{{ global_settings.monitoring.node_exporter_port }}"
+process_exporter_port: "{{ global_settings.monitoring.process_exporter_port }}"
+besu_metrics_port: "{{ global_settings.monitoring.besu_metrics_port }}"
+chrony_primary_host: "{{ global_settings.monitoring.chrony_primary_host }}"
+chrony_primary_ip: "{{ global_settings.monitoring.chrony_primary_ip }}"
+

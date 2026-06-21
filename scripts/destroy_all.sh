@@ -44,7 +44,7 @@ fi
 
 # 1. Destruction de l'infrastructure via Terraform
 log_info "Étape 1/2 : Destruction des machines virtuelles avec Terraform..."
-cd "$REPO_ROOT/besu-lab/infrastructure"
+cd "$REPO_ROOT/terraform"
 
 if [ -d ".terraform" ]; then
     terraform destroy -auto-approve
@@ -62,7 +62,7 @@ CLEAN_PATHS=(
     "/tmp/besu-dist"
     "/tmp/besu-extracted"
     "/tmp/besu-24.12.0.tar.gz"
-    "$REPO_ROOT/besu-lab/configuration/inventory/hosts.ini"
+    "$REPO_ROOT/ansible/inventory/hosts.ini"
 )
 
 for path in "${CLEAN_PATHS[@]}"; do

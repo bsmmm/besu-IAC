@@ -118,7 +118,39 @@ check_requirements() {
     return $failures
 }
 
-# Lancer la vérification
+# -----------------------------------------------------------------------------
+# ÉTAPE 0 : Vérification et configuration des paramètres (settings.yml)
+# -----------------------------------------------------------------------------
+check_configuration() {
+    local settings_file="$REPO_ROOT/config/settings.yml"
+    local default_settings_file="$REPO_ROOT/config/settings.yml.default"
+
+    if [ ! -f "$settings_file" ]; then
+        log_warn "Le fichier de configuration '$settings_file' n'a pas été trouvé."
+        if [ -f "$default_settings_file" ]; then
+            read -p "Voulez-vous procéder avec les paramètres par défaut ($default_settings_file) ? [o/N] : " choice
+            case "$choice" in
+                [oO]|[yY]|[oO][uU][iI])
+                    cp "$default_settings_file" "$settings_file"
+                    log_success "Paramètres par défaut copiés dans config/settings.yml avec succès."
+                    ;;
+                *)
+                    log_error "Erreur : Déploiement annulé. Le fichier settings.yml est requis."
+                    exit 1
+                    ;;
+            esac
+        else
+            log_error "Erreur : Le fichier de configuration par défaut '$default_settings_file' est introuvable."
+            exit 1
+        fi
+    else
+        log_info "Fichier de configuration settings.yml détecté."
+    fi
+}
+
+# Lancer les vérifications
+check_configuration
+
 check_requirements || {
     log_error "La vérification a échoué. Veuillez corriger les erreurs avant de poursuivre."
     exit 1
@@ -143,7 +175,7 @@ for ip in 10.10.10.11 10.10.10.12 10.10.10.13 10.10.10.14 10.10.10.15 10.10.20.1
 done
 
 log_info "Étape 2/3 : Lancement de la configuration logicielle avec Ansible..."
-cd "$REPO_ROOT/besu-lab/configuration"
+cd "$REPO_ROOT/ansible"
 export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-local}"
 export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-remote}"
 export ANSIBLE_SSH_CONTROL_PATH_DIR="${ANSIBLE_SSH_CONTROL_PATH_DIR:-/tmp/ansible-cp}"

@@ -17,11 +17,11 @@ provider "libvirt" {
 }
 
 resource "libvirt_network" "cluster_lan" {
-  name      = var.cluster_network_name
+  name      = local.cluster_network_name
   mode      = "none"
-  bridge    = var.cluster_network_bridge
+  bridge    = local.cluster_network_bridge
   domain    = "besu.lan"
-  addresses = [var.cluster_network_cidr]
+  addresses = [local.cluster_network_cidr]
   autostart = true
 }
 
@@ -29,14 +29,14 @@ resource "libvirt_network" "cluster_lan" {
 resource "libvirt_volume" "debian_base" {
   name   = "debian-13-base-image.qcow2"
   pool   = "default"
-  source = var.debian_image_url
+  source = local.debian_image_url
   format = "qcow2"
 }
 
 # Unique volumes for each VM using the base image backing store
 resource "libvirt_volume" "node_volume" {
-  count          = length(var.nodes)
-  name           = "volume-${var.nodes[count.index].name}.qcow2"
+  count          = length(local.nodes)
+  name           = "volume-${local.nodes[count.index].name}.qcow2"
   pool           = "default"
   base_volume_id = libvirt_volume.debian_base.id
   size           = 10737418240 # 10GB
@@ -45,8 +45,8 @@ resource "libvirt_volume" "node_volume" {
 
 # Cloud-Init disks containing user credentials and network setups
 resource "libvirt_cloudinit_disk" "commoninit" {
-  count     = length(var.nodes)
-  name      = "commoninit-${var.nodes[count.index].name}.iso"
+  count     = length(local.nodes)
+  name      = "commoninit-${local.nodes[count.index].name}.iso"
   pool      = "default"
   user_data = <<EOF
 #cloud-config
@@ -56,15 +56,15 @@ users:
     shell: /bin/bash
     sudo: 'ALL=(ALL) NOPASSWD:ALL'
     ssh_authorized_keys:
-      - ${var.ssh_public_key}
+      - ${local.ssh_public_key}
 runcmd:
   - [ ssh-keygen, -A ]
   - [ systemctl, restart, ssh ]
 EOF
 
   meta_data = <<EOF
-instance-id: ${var.nodes[count.index].name}
-local-hostname: ${var.nodes[count.index].name}
+instance-id: ${local.nodes[count.index].name}
+local-hostname: ${local.nodes[count.index].name}
 EOF
 
   network_config = <<EOF
@@ -75,16 +75,16 @@ ethernets:
   ens4:
     dhcp4: false
     addresses:
-      - ${var.nodes[count.index].ip}/24
+      - ${local.nodes[count.index].ip}/24
 EOF
 }
 
 # Domains configuration
 resource "libvirt_domain" "nodes" {
-  count  = length(var.nodes)
-  name   = var.nodes[count.index].name
-  memory = var.memory
-  vcpu   = var.vcpu
+  count  = length(local.nodes)
+  name   = local.nodes[count.index].name
+  memory = local.memory
+  vcpu   = local.vcpu
 
   cloudinit = libvirt_cloudinit_disk.commoninit[count.index].id
 

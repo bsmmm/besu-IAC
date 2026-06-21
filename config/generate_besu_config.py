@@ -4,6 +4,59 @@ import subprocess
 import glob
 import json
 import sys
+import yaml
+
+# Resolve paths relative to this script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+defaults_path = os.path.join(project_root, "config", "settings.yml.default")
+settings_path = os.path.join(project_root, "config", "settings.yml")
+
+def deep_merge_and_warn(defaults, user, path=""):
+    """
+    Recursively merges user dict into defaults dict.
+    If a key is missing in user, logs a warning about falling back to defaults.
+    """
+    merged = {}
+    for key, default_val in defaults.items():
+        current_path = f"{path}.{key}" if path else key
+        if key not in user:
+            print(f"[INFO] Parameter '{current_path}' not defined in settings.yml. Falling back to default: {default_val}")
+            merged[key] = default_val
+        else:
+            user_val = user[key]
+            if isinstance(default_val, dict) and isinstance(user_val, dict):
+                merged[key] = deep_merge_and_warn(default_val, user_val, current_path)
+            elif isinstance(default_val, list) and isinstance(user_val, list):
+                merged[key] = user_val
+            else:
+                merged[key] = user_val
+                
+    for key, user_val in user.items():
+        if key not in defaults:
+            merged[key] = user_val
+            
+    return merged
+
+# Load default settings
+if not os.path.exists(defaults_path):
+    print(f"Error: settings.yml.default not found at {defaults_path}")
+    sys.exit(1)
+
+with open(defaults_path) as f:
+    defaults = yaml.safe_load(f) or {}
+
+# Load user override settings
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        user_settings = yaml.safe_load(f) or {}
+else:
+    user_settings = {}
+    print(f"[INFO] settings.yml not found. Using all default settings.")
+
+# Perform fallback merge
+settings = deep_merge_and_warn(defaults, user_settings)
+
 
 # Paths
 base_dir = "/tmp/besu-local-gen"
@@ -12,11 +65,14 @@ config_file = os.path.join(base_dir, "qbft-config.json")
 dist_dir = "/tmp/besu-dist"
 metadata_file = os.path.join(dist_dir, "metadata.json")
 
-besu_version = os.environ.get("BESU_LAB_VERSION", "24.12.0")
-chain_id = int(os.environ.get("BESU_LAB_CHAIN_ID", "1337"))
-block_period_seconds = int(os.environ.get("BESU_LAB_BLOCK_PERIOD_SECONDS", "2"))
-request_timeout_seconds = int(os.environ.get("BESU_LAB_REQUEST_TIMEOUT_SECONDS", "4"))
-validator_count = int(os.environ.get("BESU_LAB_VALIDATOR_COUNT", "4"))
+besu_version = settings["besu"]["version"]
+chain_id = int(settings["besu"]["chain_id"])
+block_period_seconds = int(settings["besu"]["block_period_seconds"])
+request_timeout_seconds = int(settings["besu"]["request_timeout_seconds"])
+
+# Count validators from the infrastructure nodes block
+validators = [n["name"] for n in settings["infrastructure"]["nodes"] if n["role"] == "validator"]
+validator_count = len(validators)
 
 metadata = {
     "besu_version": besu_version,
@@ -56,7 +112,7 @@ if extracted_folders:
 else:
     besu_bin_dir = base_dir
 
-# Write config file
+# Write qbft config file
 config_content = {
   "genesis": {
     "config": {
@@ -94,7 +150,6 @@ shutil.copy(os.path.join(output_dir, "genesis.json"), os.path.join(dist_dir, "ge
 keys_parent = os.path.join(output_dir, "keys")
 generated_key_dirs = sorted(os.listdir(keys_parent))
 
-validators = [f"validator-{i}" for i in range(1, validator_count + 1)]
 for i, val_name in enumerate(validators):
     src_dir = os.path.join(keys_parent, generated_key_dirs[i])
     dest_dir = os.path.join(dist_dir, val_name)

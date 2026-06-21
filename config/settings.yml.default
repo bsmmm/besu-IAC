@@ -1,0 +1,45 @@
+# settings.yml
+# Global Configuration for Hyperledger Besu Cluster and Observability Stack
+
+# VM / Infrastructure Settings (Terraform QEMU/KVM)
+infrastructure:
+  debian_image_url: "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
+  vcpu: 2
+  memory: 2048
+  ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOk7dKR1V+PGlKuk8L1o4D6ZWRtdRasRaRZ5GKE+iIl8 mohamed-mahdi.ben-slima@univ-lehavre.fr"
+  network:
+    name: "besu-isolated-lan"
+    cidr: "10.10.20.0/24"
+    bridge: "virbr-besu"
+  nodes:
+    - name: "validator-1"
+      ip: "10.10.20.11"
+      role: "validator"
+    - name: "validator-2"
+      ip: "10.10.20.12"
+      role: "validator"
+    - name: "validator-3"
+      ip: "10.10.20.13"
+      role: "validator"
+    - name: "validator-4"
+      ip: "10.10.20.14"
+      role: "validator"
+    - name: "rpc-node"
+      ip: "10.10.20.15"
+      role: "rpc"
+
+# Blockchain Node Settings (Ansible & Configuration Generator)
+besu:
+  version: "24.12.0"
+  tarball_checksum: "sha256:74d20b2a4b3da659f608d65c09ab95d2187dc2c54372d9f7330bf5190d5e7124"
+  chain_id: 1337
+  block_period_seconds: 2
+  request_timeout_seconds: 4
+
+# Observability and Exporter Ports
+monitoring:
+  node_exporter_port: 9100
+  process_exporter_port: 9256
+  besu_metrics_port: 9545
+  chrony_primary_host: "validator-1"
+  chrony_primary_ip: "10.10.20.11"

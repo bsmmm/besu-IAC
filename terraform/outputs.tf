@@ -1,10 +1,10 @@
 locals {
-  validators = [for n in var.nodes : n if n.role == "validator"]
-  rpc_nodes  = [for n in var.nodes : n if n.role == "rpc"]
+  validators = [for n in local.nodes : n if n.role == "validator"]
+  rpc_nodes  = [for n in local.nodes : n if n.role == "rpc"]
 }
 
 resource "local_file" "ansible_inventory" {
-  filename        = "${path.module}/../configuration/inventory/hosts.ini"
+  filename        = "${path.module}/../ansible/inventory/hosts.ini"
   file_permission = "0644"
   content         = <<-EOF
 [validators]
@@ -25,7 +25,7 @@ EOF
 }
 
 output "node_ips" {
-  value = { for n in var.nodes : n.name => n.ip }
+  value = { for n in local.nodes : n.name => n.ip }
 }
 
 output "cluster_network_name" {
