@@ -6,27 +6,15 @@ driver:
 platforms:
   - name: bootnode-1
     image: debian:trixie
-    dockerfile: ../../../molecule-systemd.Dockerfile
-    privileged: true
-    pre_build_image: false
-    tmpfs:
-      - /run
-      - /run/lock
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    command: sleep infinity
+    pre_build_image: true
     groups:
       - bootnodes
       - all
   - name: validator-1
     image: debian:trixie
-    dockerfile: ../../../molecule-systemd.Dockerfile
-    privileged: true
-    pre_build_image: false
-    tmpfs:
-      - /run
-      - /run/lock
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    command: sleep infinity
+    pre_build_image: true
     groups:
       - validators
       - all
