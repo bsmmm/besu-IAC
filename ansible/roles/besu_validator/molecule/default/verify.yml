@@ -1,0 +1,58 @@
+---
+- name: Verify key-distribution roles (validator, bootnode, rpc)
+  hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+    # ── Private key ──────────────────────────────────────────────────────
+    - name: Verify private key exists
+      stat:
+        path: /opt/besu/data/key
+      register: node_key
+
+    - name: Assert private key is present with correct permissions
+      assert:
+        that:
+          - node_key.stat.exists
+          - node_key.stat.mode == '0600'
+          - node_key.stat.pw_name == 'besu'
+          - node_key.stat.gr_name == 'besu'
+        fail_msg: "/opt/besu/data/key missing or has incorrect permissions on {{ inventory_hostname }}"
+
+    # ── Public key ───────────────────────────────────────────────────────
+    - name: Verify public key exists
+      stat:
+        path: /opt/besu/data/key.pub
+      register: node_pub
+
+    - name: Assert public key is present with correct permissions
+      assert:
+        that:
+          - node_pub.stat.exists
+          - node_pub.stat.mode == '0600'
+          - node_pub.stat.pw_name == 'besu'
+          - node_pub.stat.gr_name == 'besu'
+        fail_msg: "/opt/besu/data/key.pub missing or has incorrect permissions on {{ inventory_hostname }}"
+
+    # ── Content validation ───────────────────────────────────────────────
+    - name: Read private key content
+      slurp:
+        src: /opt/besu/data/key
+      register: key_content
+
+    - name: Assert private key is not empty
+      assert:
+        that:
+          - (key_content.content | b64decode | length) > 0
+        fail_msg: "Private key file is empty on {{ inventory_hostname }}"
+
+    - name: Read public key content
+      slurp:
+        src: /opt/besu/data/key.pub
+      register: pub_content
+
+    - name: Assert public key is not empty
+      assert:
+        that:
+          - (pub_content.content | b64decode | length) > 0
+        fail_msg: "Public key file is empty on {{ inventory_hostname }}"

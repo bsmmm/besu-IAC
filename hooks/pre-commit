@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+# Pre-commit hook : exécute les tests Molecule sur les rôles Ansible modifiés.
+# Installation : cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Ou via le script : ./scripts/install-hooks.sh
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0;0m'
+
+# Vérifier si Molecule est disponible
+if ! command -v molecule &> /dev/null; then
+    echo -e "${YELLOW}[ATTENTION]${NC} Molecule n'est pas installé. Tests pré-commit ignorés."
+    echo -e "${YELLOW}[ATTENTION]${NC} Installez avec : pip install -r ansible/requirements.txt"
+    exit 0
+fi
+
+if ! command -v docker &> /dev/null; then
+    echo -e "${YELLOW}[ATTENTION]${NC} Docker n'est pas disponible. Tests pré-commit ignorés."
+    exit 0
+fi
+
+# Récupérer la liste des fichiers modifiés (staged) dans ansible/roles/
+CHANGED_ROLES=()
+
+while IFS= read -r file; do
+    # Extraire le nom du rôle depuis le chemin (ansible/roles/<role_name>/...)
+    if [[ "$file" =~ ^ansible/roles/([^/]+)/ ]]; then
+        role_name="${BASH_REMATCH[1]}"
+        # Vérifier que ce rôle a une configuration Molecule
+        if [ -d "$REPO_ROOT/ansible/roles/$role_name/molecule" ]; then
+            # Éviter les doublons
+            if [[ ! " ${CHANGED_ROLES[*]:-} " =~ " $role_name " ]]; then
+                CHANGED_ROLES+=("$role_name")
+            fi
+        fi
+    fi
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if [ ${#CHANGED_ROLES[@]} -eq 0 ]; then
+    echo -e "${BLUE}[INFO]${NC} Aucun rôle Ansible modifié. Tests Molecule ignorés."
+    exit 0
+fi
+
+echo -e "${BLUE}[INFO]${NC} Rôles modifiés détectés : ${CHANGED_ROLES[*]}"
+echo -e "${BLUE}[INFO]${NC} Exécution des tests Molecule..."
+
+FAILED=0
+
+for role in "${CHANGED_ROLES[@]}"; do
+    echo -e "${BLUE}[INFO]${NC} Test du rôle : $role"
+    if (cd "$REPO_ROOT/ansible/roles/$role" && molecule test 2>&1); then
+        echo -e "${GREEN}[SUCCÈS]${NC} Rôle '$role' : RÉUSSI ✓"
+    else
+        echo -e "${RED}[ERREUR]${NC} Rôle '$role' : ÉCHOUÉ ✗"
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+if [ $FAILED -gt 0 ]; then
+    echo ""
+    echo -e "${RED}[ERREUR]${NC} $FAILED rôle(s) ont échoué les tests Molecule."
+    echo -e "${RED}[ERREUR]${NC} Corrigez les erreurs avant de committer, ou utilisez 'git commit --no-verify' pour ignorer."
+    exit 1
+fi
+
+echo -e "${GREEN}[SUCCÈS]${NC} Tous les tests Molecule pré-commit ont réussi !"
+exit 0

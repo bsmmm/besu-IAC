@@ -1,0 +1,113 @@
+---
+- name: Verify system_prep role
+  hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+    # ── Package installation checks ──────────────────────────────────────
+    - name: Verify baseline packages are installed
+      command: dpkg -s {{ item }}
+      loop:
+        - chrony
+        - ufw
+        - tar
+        - unzip
+        - curl
+        - default-jre-headless
+      register: pkg_check
+      changed_when: false
+      failed_when: pkg_check.rc != 0
+
+    # ── Chrony configuration checks ──────────────────────────────────────
+    - name: Read chrony.conf
+      slurp:
+        src: /etc/chrony/chrony.conf
+      register: chrony_conf_raw
+
+    - name: Decode chrony.conf content
+      set_fact:
+        chrony_conf: "{{ chrony_conf_raw.content | b64decode }}"
+
+    - name: Assert chrony primary host has 'local stratum' directive
+      assert:
+        that:
+          - "'local stratum 10' in chrony_conf"
+          - "'allow ' ~ cluster_cidr in chrony_conf"
+        fail_msg: "bootnode-1 chrony.conf does not contain expected primary time authority config"
+      when: inventory_hostname == chrony_primary_host
+
+    - name: Assert chrony client points to the primary IP
+      assert:
+        that:
+          - "'server ' ~ chrony_primary_ip ~ ' iburst prefer' in chrony_conf"
+        fail_msg: "{{ inventory_hostname }} chrony.conf does not point to the primary NTP server"
+      when: inventory_hostname != chrony_primary_host
+
+    # ── /etc/hosts checks ────────────────────────────────────────────────
+    - name: Read /etc/hosts
+      slurp:
+        src: /etc/hosts
+      register: etc_hosts_raw
+
+    - name: Assert /etc/hosts contains cluster node mappings
+      assert:
+        that:
+          - "'10.10.20.11 validator-1' in (etc_hosts_raw.content | b64decode)"
+
+    # ── Node Exporter checks ────────────────────────────────────────────
+    - name: Verify prometheus-node-exporter is installed
+      command: dpkg -s prometheus-node-exporter
+      changed_when: false
+      failed_when: false
+      register: node_exporter_pkg
+
+    - name: Assert Node Exporter package is present
+      assert:
+        that:
+          - node_exporter_pkg.rc == 0
+        fail_msg: "prometheus-node-exporter is not installed"
+
+    # ── Process Exporter checks ──────────────────────────────────────────
+    - name: Verify process-exporter binary exists
+      stat:
+        path: /opt/process-exporter/process-exporter
+      register: pe_binary
+
+    - name: Assert process-exporter binary is present
+      assert:
+        that:
+          - pe_binary.stat.exists
+        fail_msg: "/opt/process-exporter/process-exporter binary not found"
+
+    - name: Read process-exporter config
+      slurp:
+        src: /etc/process-exporter/process-exporter.yml
+      register: pe_config_raw
+
+    - name: Assert process-exporter config monitors besu
+      assert:
+        that:
+          - "'besu' in (pe_config_raw.content | b64decode)"
+          - "'chronyd' in (pe_config_raw.content | b64decode)"
+
+    - name: Verify process-exporter systemd unit exists
+      stat:
+        path: /etc/systemd/system/process-exporter.service
+      register: pe_service_file
+
+    - name: Assert process-exporter service unit is present
+      assert:
+        that:
+          - pe_service_file.stat.exists
+        fail_msg: "process-exporter.service systemd unit not found"
+
+    - name: Read process-exporter service unit
+      slurp:
+        src: /etc/systemd/system/process-exporter.service
+      register: pe_service_raw
+
+    - name: Assert process-exporter listens on configured port
+      assert:
+        that:
+          - "':' ~ process_exporter_port | string in (pe_service_raw.content | b64decode)"
+        fail_msg: "process-exporter service not configured with correct port"

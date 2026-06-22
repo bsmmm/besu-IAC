@@ -1,0 +1,7 @@
+---
+- name: Converge — Apply system_prep role
+  hosts: all
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: system_prep

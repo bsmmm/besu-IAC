@@ -1,0 +1,56 @@
+---
+- name: Create mock key files on localhost (simulating generate_besu_config.py output)
+  hosts: localhost
+  gather_facts: no
+  connection: local
+  tasks:
+    - name: Create mock key directories for each node
+      file:
+        path: "/tmp/besu-dist/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - validator-1
+        - bootnode-1
+        - rpc-node-1
+
+    - name: Create mock private key files
+      copy:
+        dest: "/tmp/besu-dist/{{ item }}/key"
+        content: "0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+        mode: '0600'
+      loop:
+        - validator-1
+        - bootnode-1
+        - rpc-node-1
+
+    - name: Create mock public key files
+      copy:
+        dest: "/tmp/besu-dist/{{ item }}/key.pub"
+        content: "0xaabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899aabb"
+        mode: '0644'
+      loop:
+        - validator-1
+        - bootnode-1
+        - rpc-node-1
+
+- name: Converge — Apply besu_validator role to validators
+  hosts: validators
+  gather_facts: no
+  become: yes
+  roles:
+    - role: besu_validator
+
+- name: Converge — Apply besu_bootnode role to bootnodes
+  hosts: bootnodes
+  gather_facts: no
+  become: yes
+  roles:
+    - role: besu_bootnode
+
+- name: Converge — Apply besu_rpc role to RPC nodes
+  hosts: rpc
+  gather_facts: no
+  become: yes
+  roles:
+    - role: besu_rpc

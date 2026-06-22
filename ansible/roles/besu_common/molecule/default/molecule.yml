@@ -1,0 +1,63 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: validator-1
+    image: debian:trixie
+    dockerfile: ../../../molecule-systemd.Dockerfile
+    privileged: true
+    pre_build_image: false
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups:
+      - validators
+      - all
+  - name: rpc-node-1
+    image: debian:trixie
+    dockerfile: ../../../molecule-systemd.Dockerfile
+    privileged: true
+    pre_build_image: false
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups:
+      - rpc
+      - all
+  - name: bootnode-1
+    image: debian:trixie
+    dockerfile: ../../../molecule-systemd.Dockerfile
+    privileged: true
+    pre_build_image: false
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups:
+      - bootnodes
+      - all
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    ANSIBLE_REMOTE_TMP: /tmp/.ansible/tmp
+  inventory:
+    group_vars:
+      all:
+        cluster_cidr: "10.10.20.0/24"
+        besu_version: "24.12.0"
+        besu_tarball_checksum: "sha256:74d20b2a4b3da659f608d65c09ab95d2187dc2c54372d9f7330bf5190d5e7124"
+        besu_chain_id: 1337
+        besu_block_period_seconds: 2
+        besu_request_timeout_seconds: 4
+        besu_expected_validator_count: 1
+        besu_metrics_port: 9545
+verifier:
+  name: ansible

@@ -1,0 +1,48 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: bootnode-1
+    image: debian:trixie
+    dockerfile: ../../../molecule-systemd.Dockerfile
+    privileged: true
+    pre_build_image: false
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups:
+      - bootnodes
+      - all
+  - name: validator-1
+    image: debian:trixie
+    dockerfile: ../../../molecule-systemd.Dockerfile
+    privileged: true
+    pre_build_image: false
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    groups:
+      - validators
+      - all
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+    ANSIBLE_REMOTE_TMP: /tmp/.ansible/tmp
+  inventory:
+    group_vars:
+      all:
+        cluster_cidr: "10.10.20.0/24"
+        chrony_primary_host: "bootnode-1"
+        chrony_primary_ip: "10.10.20.11"
+        node_exporter_port: 9100
+        process_exporter_port: 9256
+        besu_metrics_port: 9545
+verifier:
+  name: ansible

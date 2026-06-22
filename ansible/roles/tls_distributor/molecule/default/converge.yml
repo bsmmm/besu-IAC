@@ -1,0 +1,7 @@
+---
+- name: Converge — Apply tls_distributor role
+  hosts: all
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: tls_distributor

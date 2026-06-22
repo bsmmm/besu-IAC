@@ -1,0 +1,125 @@
+---
+- name: Verify tls_distributor role
+  hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+    # ── Directory structure ──────────────────────────────────────────────
+    - name: Verify certs directory exists with correct ownership
+      stat:
+        path: /opt/besu/certs
+      register: certs_dir
+
+    - name: Assert certs directory
+      assert:
+        that:
+          - certs_dir.stat.exists
+          - certs_dir.stat.isdir
+          - certs_dir.stat.pw_name == 'besu'
+          - certs_dir.stat.gr_name == 'besu'
+        fail_msg: "/opt/besu/certs directory missing or has wrong ownership"
+
+    # ── Private key ──────────────────────────────────────────────────────
+    - name: Verify node.key exists
+      stat:
+        path: /opt/besu/certs/node.key
+      register: node_key
+
+    - name: Assert node.key is present
+      assert:
+        that:
+          - node_key.stat.exists
+        fail_msg: "TLS private key /opt/besu/certs/node.key not found"
+
+    - name: Verify node.key is a valid RSA key
+      command: openssl rsa -in /opt/besu/certs/node.key -check -noout
+      changed_when: false
+
+    # ── Certificate ──────────────────────────────────────────────────────
+    - name: Verify node.crt exists
+      stat:
+        path: /opt/besu/certs/node.crt
+      register: node_crt
+
+    - name: Assert node.crt is present
+      assert:
+        that:
+          - node_crt.stat.exists
+        fail_msg: "TLS certificate /opt/besu/certs/node.crt not found"
+
+    - name: Verify certificate has CA:TRUE basic constraint
+      shell: openssl x509 -in /opt/besu/certs/node.crt -text -noout | grep "CA:TRUE"
+      changed_when: false
+      register: ca_check
+
+    - name: Assert CA:TRUE is present
+      assert:
+        that:
+          - ca_check.rc == 0
+        fail_msg: "Certificate does not contain CA:TRUE basic constraint"
+
+    - name: Verify certificate CN matches hostname
+      shell: "openssl x509 -in /opt/besu/certs/node.crt -subject -noout"
+      changed_when: false
+      register: cert_subject
+
+    - name: Assert CN matches inventory_hostname
+      assert:
+        that:
+          - "inventory_hostname in cert_subject.stdout"
+        fail_msg: "Certificate CN does not match {{ inventory_hostname }}"
+
+    # ── Keystore password ────────────────────────────────────────────────
+    - name: Verify keystore.password exists with strict permissions
+      stat:
+        path: /opt/besu/certs/keystore.password
+      register: ks_password
+
+    - name: Assert keystore.password permissions
+      assert:
+        that:
+          - ks_password.stat.exists
+          - ks_password.stat.mode == '0600'
+          - ks_password.stat.pw_name == 'besu'
+          - ks_password.stat.gr_name == 'besu'
+        fail_msg: "keystore.password has incorrect permissions or ownership"
+
+    # ── PKCS12 keystore ──────────────────────────────────────────────────
+    - name: Verify keystore.p12 exists with strict permissions
+      stat:
+        path: /opt/besu/certs/keystore.p12
+      register: ks_p12
+
+    - name: Assert keystore.p12 permissions
+      assert:
+        that:
+          - ks_p12.stat.exists
+          - ks_p12.stat.mode == '0600'
+          - ks_p12.stat.pw_name == 'besu'
+          - ks_p12.stat.gr_name == 'besu'
+        fail_msg: "keystore.p12 has incorrect permissions or ownership"
+
+    - name: Verify keystore.p12 is a valid PKCS12 file
+      shell: openssl pkcs12 -in /opt/besu/certs/keystore.p12 -passin file:/opt/besu/certs/keystore.password -noout
+      changed_when: false
+
+    # ── Idempotency guard: cert should NOT be regenerated ────────────────
+    - name: Record certificate serial before second run
+      shell: openssl x509 -in /opt/besu/certs/node.crt -serial -noout
+      changed_when: false
+      register: cert_serial_before
+
+    - name: Re-run the tls_distributor role to test idempotency
+      include_role:
+        name: tls_distributor
+
+    - name: Record certificate serial after second run
+      shell: openssl x509 -in /opt/besu/certs/node.crt -serial -noout
+      changed_when: false
+      register: cert_serial_after
+
+    - name: Assert certificate was NOT regenerated (idempotency)
+      assert:
+        that:
+          - cert_serial_before.stdout == cert_serial_after.stdout
+        fail_msg: "Certificate was regenerated on second run — idempotency is broken!"

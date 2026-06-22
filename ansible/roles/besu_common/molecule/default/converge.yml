@@ -1,0 +1,7 @@
+---
+- name: Converge — Apply besu_common role
+  hosts: all
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: besu_common

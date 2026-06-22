@@ -28,3 +28,9 @@ ansible/.vault_pass
 # Local configuration overrides
 config/settings.yml
 
+# Molecule / Python
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+.venv/
+

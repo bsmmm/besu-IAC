@@ -1,0 +1,146 @@
+---
+- name: Verify besu_common role
+  hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+    # ── Data directory ───────────────────────────────────────────────────
+    - name: Verify /opt/besu/data directory
+      stat:
+        path: /opt/besu/data
+      register: data_dir
+
+    - name: Assert data directory exists with correct ownership
+      assert:
+        that:
+          - data_dir.stat.exists
+          - data_dir.stat.isdir
+          - data_dir.stat.pw_name == 'besu'
+          - data_dir.stat.gr_name == 'besu'
+        fail_msg: "/opt/besu/data directory missing or wrong ownership"
+
+    # ── Besu binary ──────────────────────────────────────────────────────
+    - name: Verify Besu binary exists
+      stat:
+        path: /opt/besu/bin/besu
+      register: besu_bin
+
+    - name: Assert Besu binary is present
+      assert:
+        that:
+          - besu_bin.stat.exists
+        fail_msg: "/opt/besu/bin/besu binary not found"
+
+    # ── Genesis file ─────────────────────────────────────────────────────
+    - name: Verify genesis.json exists
+      stat:
+        path: /opt/besu/genesis.json
+      register: genesis_file
+
+    - name: Assert genesis.json is present with correct ownership
+      assert:
+        that:
+          - genesis_file.stat.exists
+          - genesis_file.stat.pw_name == 'besu'
+          - genesis_file.stat.gr_name == 'besu'
+          - genesis_file.stat.mode == '0644'
+        fail_msg: "genesis.json missing or wrong permissions"
+
+    - name: Read genesis.json content
+      slurp:
+        src: /opt/besu/genesis.json
+      register: genesis_raw
+
+    - name: Parse genesis.json
+      set_fact:
+        genesis_data: "{{ genesis_raw.content | b64decode | from_json }}"
+
+    - name: Assert genesis contains QBFT config
+      assert:
+        that:
+          - genesis_data.config.qbft is defined
+          - genesis_data.config.chainId == besu_chain_id | int
+        fail_msg: "genesis.json does not contain expected QBFT configuration"
+
+    # ── config.toml ──────────────────────────────────────────────────────
+    - name: Verify config.toml exists
+      stat:
+        path: /opt/besu/config.toml
+      register: config_toml
+
+    - name: Assert config.toml is present
+      assert:
+        that:
+          - config_toml.stat.exists
+          - config_toml.stat.pw_name == 'besu'
+          - config_toml.stat.gr_name == 'besu'
+        fail_msg: "config.toml missing or wrong ownership"
+
+    - name: Read config.toml
+      slurp:
+        src: /opt/besu/config.toml
+      register: config_raw
+
+    - name: Decode config.toml
+      set_fact:
+        config_content: "{{ config_raw.content | b64decode }}"
+
+    - name: Assert common config.toml settings
+      assert:
+        that:
+          - "'p2p-enabled=true' in config_content"
+          - "'genesis-file=\"/opt/besu/genesis.json\"' in config_content"
+          - "'data-path=\"/opt/besu/data\"' in config_content"
+          - "'metrics-enabled=true' in config_content"
+          - "'bootnodes=[' in config_content"
+        fail_msg: "config.toml is missing expected common settings"
+
+    - name: Assert RPC node has RPC enabled
+      assert:
+        that:
+          - "'rpc-http-enabled=true' in config_content"
+          - "'rpc-http-tls-enabled=true' in config_content"
+          - "'rpc-ws-enabled=true' in config_content"
+        fail_msg: "RPC node config.toml should have RPC/WS enabled"
+      when: inventory_hostname in groups['rpc']
+
+    - name: Assert validator has RPC disabled
+      assert:
+        that:
+          - "'rpc-http-enabled=false' in config_content"
+          - "'rpc-ws-enabled=false' in config_content"
+        fail_msg: "Validator config.toml should have RPC/WS disabled"
+      when: inventory_hostname in groups['validators']
+
+    - name: Assert bootnode has RPC disabled
+      assert:
+        that:
+          - "'rpc-http-enabled=false' in config_content"
+          - "'rpc-ws-enabled=false' in config_content"
+        fail_msg: "Bootnode config.toml should have RPC/WS disabled"
+      when: inventory_hostname in groups['bootnodes']
+
+    # ── Systemd service ──────────────────────────────────────────────────
+    - name: Verify besu.service unit file exists
+      stat:
+        path: /etc/systemd/system/besu.service
+      register: besu_service
+
+    - name: Assert besu.service is present
+      assert:
+        that:
+          - besu_service.stat.exists
+        fail_msg: "besu.service systemd unit not found"
+
+    - name: Read besu.service content
+      slurp:
+        src: /etc/systemd/system/besu.service
+      register: besu_service_raw
+
+    - name: Assert besu.service contains expected directives
+      assert:
+        that:
+          - "'User=besu' in (besu_service_raw.content | b64decode)"
+          - "'ExecStart=/opt/besu/bin/besu' in (besu_service_raw.content | b64decode)"
+          - "'config-file=/opt/besu/config.toml' in (besu_service_raw.content | b64decode)"
+        fail_msg: "besu.service content is incorrect"

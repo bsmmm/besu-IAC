@@ -1,0 +1,22 @@
+---
+- name: Prepare container for tls_distributor role
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Install baseline packages (running as root in container, no sudo needed)
+      raw: apt-get update && apt-get install -y python3 python3-apt openssl sudo
+      changed_when: false
+
+    - name: Gather facts
+      setup:
+
+    - name: Set besu_node_ip for template compatibility
+      set_fact:
+        besu_node_ip: "10.10.20.17"
+
+    - name: Create besu system user and group
+      user:
+        name: besu
+        system: yes
+        create_home: no
+        shell: /usr/sbin/nologin

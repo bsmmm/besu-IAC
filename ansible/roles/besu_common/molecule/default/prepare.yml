@@ -1,0 +1,43 @@
+---
+- name: Prepare containers for besu_common
+  hosts: all
+  gather_facts: yes
+  tasks:
+    - name: Set besu_node_ip for template compatibility
+      set_fact:
+        besu_node_ip: >-
+          {{ '10.10.20.13' if inventory_hostname == 'validator-1'
+          else '10.10.20.17' if inventory_hostname == 'rpc-node-1'
+          else '10.10.20.11' }}
+
+    - name: Install additional packages needed by the role
+      apt:
+        name:
+          - default-jre-headless
+          - curl
+          - tar
+        state: present
+        update_cache: yes
+
+    - name: Create besu system user and group
+      user:
+        name: besu
+        system: yes
+        create_home: no
+        shell: /usr/sbin/nologin
+
+    - name: Create /opt/besu/certs directory (normally done by tls_distributor)
+      file:
+        path: /opt/besu/certs
+        state: directory
+        owner: besu
+        group: besu
+        mode: '0755'
+
+    - name: Create mock keystore.password (normally done by tls_distributor)
+      copy:
+        dest: /opt/besu/certs/keystore.password
+        content: "mock-password-for-testing"
+        owner: besu
+        group: besu
+        mode: '0600'
