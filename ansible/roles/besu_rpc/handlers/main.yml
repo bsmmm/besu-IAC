@@ -4,3 +4,4 @@
     name: besu
     state: restarted
   become: yes
+  when: ansible_virtualization_type != 'docker'

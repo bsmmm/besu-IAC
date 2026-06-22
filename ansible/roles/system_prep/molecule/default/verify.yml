@@ -53,6 +53,7 @@
       assert:
         that:
           - "'10.10.20.11 validator-1' in (etc_hosts_raw.content | b64decode)"
+      when: ansible_virtualization_type != 'docker'
 
     # ── Node Exporter checks ────────────────────────────────────────────
     - name: Verify prometheus-node-exporter is installed

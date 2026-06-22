@@ -4,15 +4,18 @@
     name: chrony
     state: restarted
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
 - name: Reload systemd
   systemd:
     daemon_reload: yes
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
 - name: Restart process-exporter
   service:
     name: process-exporter
     state: restarted
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
