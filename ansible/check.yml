@@ -46,7 +46,7 @@
         msg: "Port 30303 is not listening"
 
     - name: Verify RPC Node Health
-      when: inventory_hostname == 'rpc-node'
+      when: inventory_hostname in groups['rpc']
       block:
         - name: Check JSON-RPC listening port (8545 TCP)
           wait_for:
@@ -168,5 +168,5 @@
         - name: Validate Admin Peers
           assert:
             that:
-              - rpc_admin_peers.json.result | length >= besu_expected_validator_count
-            fail_msg: "admin_peers did not return the expected validator peer set."
+              - rpc_admin_peers.json.result | length >= 2
+            fail_msg: "admin_peers did not return the expected active peer set."

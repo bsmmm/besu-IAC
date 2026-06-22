@@ -12,22 +12,30 @@ infrastructure:
     cidr: "10.10.20.0/24"
     bridge: "virbr-besu"
   nodes:
-    - name: "validator-1"
+    - name: "bootnode-1"
       ip: "10.10.20.11"
-      role: "validator"
-    - name: "validator-2"
+      roles: ["bootnode"]
+    - name: "bootnode-2"
       ip: "10.10.20.12"
-      role: "validator"
-    - name: "validator-3"
+      roles: ["bootnode"]
+    - name: "validator-1"
       ip: "10.10.20.13"
-      role: "validator"
-    - name: "validator-4"
+      roles: ["validator"]
+    - name: "validator-2"
       ip: "10.10.20.14"
-      role: "validator"
-    - name: "rpc-node"
+      roles: ["validator"]
+    - name: "validator-3"
       ip: "10.10.20.15"
-      role: "rpc"
-
+      roles: ["validator"]
+    - name: "validator-4"
+      ip: "10.10.20.16"
+      roles: ["validator"]
+    - name: "rpc-node-1"
+      ip: "10.10.20.17"
+      roles: ["rpc"]
+    - name: "rpc-node-2"
+      ip: "10.10.20.18"
+      roles: ["rpc"]
 # Blockchain Node Settings (Ansible & Configuration Generator)
 besu:
   version: "24.12.0"
@@ -41,7 +49,7 @@ monitoring:
   node_exporter_port: 9100
   process_exporter_port: 9256
   besu_metrics_port: 9545
-  chrony_primary_host: "validator-1"
+  chrony_primary_host: "bootnode-1"
   chrony_primary_ip: "10.10.20.11"
 
 # Logging and Debugging Configuration

@@ -22,6 +22,9 @@ else
   fi
 fi
 
+echo "Generating dynamic monitoring configurations..."
+python3 "$SCRIPTS_DIR/generate_monitoring_config.py"
+
 echo "Starting Docker Compose monitoring stack..."
 docker compose -f "$MONITORING_DIR/docker-compose.yml" up -d
 
@@ -34,8 +37,8 @@ if curl -s --max-time 2 http://localhost:4000/api/v2/stats > /dev/null; then
     db_block=0
   fi
 
-  # Query current RPC block height (trusting self-signed certs via -k)
-  rpc_block_hex=$(curl -s -k -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' https://10.10.20.15:8545 | grep -o '"result":"[^"]*"' | cut -d'"' -f4 || echo "")
+  # Query current RPC block height from the load balancer proxy
+  rpc_block_hex=$(curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://localhost:8545 | grep -o '"result":"[^"]*"' | cut -d'"' -f4 || echo "")
   if [[ ! -z "$rpc_block_hex" && "$rpc_block_hex" != "null" ]]; then
     rpc_block_dec=$((rpc_block_hex))
   else

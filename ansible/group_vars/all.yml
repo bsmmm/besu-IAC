@@ -16,7 +16,7 @@ besu_tarball_checksum: "{{ global_settings.besu.tarball_checksum }}"
 besu_chain_id: "{{ global_settings.besu.chain_id }}"
 besu_block_period_seconds: "{{ global_settings.besu.block_period_seconds }}"
 besu_request_timeout_seconds: "{{ global_settings.besu.request_timeout_seconds }}"
-besu_expected_validator_count: "{{ global_settings.infrastructure.nodes | selectattr('role', 'equalto', 'validator') | list | length }}"
+besu_expected_validator_count: "{{ groups['validators'] | length }}"
 
 # Monitoring settings
 node_exporter_port: "{{ global_settings.monitoring.node_exporter_port }}"

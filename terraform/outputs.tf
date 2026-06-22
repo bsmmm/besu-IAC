@@ -1,6 +1,7 @@
 locals {
-  validators = [for n in local.nodes : n if n.role == "validator"]
-  rpc_nodes  = [for n in local.nodes : n if n.role == "rpc"]
+  validators = [for n in local.nodes : n if contains(n.roles, "validator")]
+  rpc_nodes  = [for n in local.nodes : n if contains(n.roles, "rpc")]
+  bootnodes  = [for n in local.nodes : n if contains(n.roles, "bootnode")]
 }
 
 resource "local_file" "ansible_inventory" {
@@ -14,6 +15,11 @@ ${node.name} ansible_host=${node.ip}
 
 [rpc]
 %{for node in local.rpc_nodes~}
+${node.name} ansible_host=${node.ip}
+%{endfor~}
+
+[bootnodes]
+%{for node in local.bootnodes~}
 ${node.name} ansible_host=${node.ip}
 %{endfor~}
 

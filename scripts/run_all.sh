@@ -170,7 +170,14 @@ log_success "Provisionnement de l'infrastructure terminé avec succès."
 # ÉTAPE 3 : Configuration du cluster avec Ansible
 # -----------------------------------------------------------------------------
 log_info "Nettoyage des anciennes clés SSH connues pour le cluster..."
-for ip in 10.10.10.11 10.10.10.12 10.10.10.13 10.10.10.14 10.10.10.15 10.10.20.11 10.10.20.12 10.10.20.13 10.10.20.14 10.10.20.15; do
+node_ips=($(python3 -c "
+import yaml, os
+defaults = yaml.safe_load(open('$REPO_ROOT/config/settings.yml.default'))
+user = yaml.safe_load(open('$REPO_ROOT/config/settings.yml')) if os.path.exists('$REPO_ROOT/config/settings.yml') else {}
+nodes = user.get('infrastructure', {}).get('nodes', []) or defaults['infrastructure']['nodes']
+print(' '.join([n['ip'] for n in nodes]))
+"))
+for ip in "${node_ips[@]}"; do
     ssh-keygen -f "$HOME/.ssh/known_hosts" -R "$ip" &>/dev/null || true
 done
 

@@ -1,0 +1,6 @@
+---
+- name: Restart besu
+  service:
+    name: besu
+    state: restarted
+  become: yes

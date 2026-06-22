@@ -71,7 +71,8 @@ block_period_seconds = int(settings["besu"]["block_period_seconds"])
 request_timeout_seconds = int(settings["besu"]["request_timeout_seconds"])
 
 # Count validators from the infrastructure nodes block
-validators = [n["name"] for n in settings["infrastructure"]["nodes"] if n["role"] == "validator"]
+all_nodes = settings["infrastructure"]["nodes"]
+validators = [n["name"] for n in all_nodes if "validator" in n.get("roles", [])]
 validator_count = len(validators)
 
 metadata = {
@@ -80,6 +81,8 @@ metadata = {
     "block_period_seconds": block_period_seconds,
     "request_timeout_seconds": request_timeout_seconds,
     "validator_count": validator_count,
+    "node_names": sorted([n["name"] for n in all_nodes]),
+    "validator_names": sorted(validators),
 }
 
 # Check if configuration already exists to preserve keys
@@ -158,6 +161,18 @@ for i, val_name in enumerate(validators):
     shutil.copy(os.path.join(src_dir, "key.pub"), os.path.join(dest_dir, "key.pub"))
     with open(os.path.join(dest_dir, "key.address"), "w") as f:
         f.write(generated_key_dirs[i])
+
+# Generate keys for non-validators dynamically
+for node in all_nodes:
+    node_name = node["name"]
+    if node_name not in validators:
+        node_dest_dir = os.path.join(dist_dir, node_name)
+        os.makedirs(node_dest_dir, exist_ok=True)
+        subprocess.run([
+            besu_path, f"--data-path={node_dest_dir}",
+            "public-key", "export",
+            f"--to={os.path.join(node_dest_dir, 'key.pub')}"
+        ], check=True)
 
 with open(metadata_file, "w") as f:
     json.dump(metadata, f, indent=2)

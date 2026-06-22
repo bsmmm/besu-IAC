@@ -3,14 +3,10 @@
   hosts: all
   gather_facts: no
   tasks:
-    - name: Wait for SSH port 22 to open
-      wait_for:
-        port: 22
-        host: "{{ ansible_host }}"
-        search_regex: OpenSSH
+    - name: Wait for SSH connection to become fully available
+      wait_for_connection:
         delay: 5
         timeout: 300
-      delegate_to: localhost
 
 - name: Prep baseline system configurations and TLS credentials
   hosts: all
@@ -19,11 +15,40 @@
     - system_prep
     - tls_distributor
 
-- name: Deploy, configure, and boot Hyperledger Besu nodes
+- name: Deploy common Hyperledger Besu configuration
   hosts: all
   gather_facts: yes
   roles:
-    - besu_node
+    - besu_common
+
+- name: Configure Validator nodes
+  hosts: validators
+  gather_facts: no
+  roles:
+    - besu_validator
+
+- name: Configure Bootnodes
+  hosts: bootnodes
+  gather_facts: no
+  roles:
+    - besu_bootnode
+
+- name: Configure RPC nodes
+  hosts: rpc
+  gather_facts: no
+  roles:
+    - besu_rpc
+
+- name: Start and enable Besu service
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Start and enable Besu service
+      service:
+        name: besu
+        state: started
+        enabled: yes
+      become: yes
 
 - name: Fetch RPC node TLS certificate to the host
   hosts: rpc
@@ -35,4 +60,3 @@
         dest: "{{ playbook_dir }}/../../monitoring/certs/rpc-node.crt"
         flat: yes
       become: yes
-

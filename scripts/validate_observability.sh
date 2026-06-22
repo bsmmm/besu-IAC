@@ -5,17 +5,20 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "=========================================================="
 echo "      Besu Infrastructure Observability Validator        "
 echo "=========================================================="
 
-nodes=(
-  "10.10.20.11"
-  "10.10.20.12"
-  "10.10.20.13"
-  "10.10.20.14"
-  "10.10.20.15"
-)
+# Extract node IPs dynamically
+nodes=($(python3 -c "
+import yaml, os
+defaults = yaml.safe_load(open('$SCRIPTS_DIR/../config/settings.yml.default'))
+user = yaml.safe_load(open('$SCRIPTS_DIR/../config/settings.yml')) if os.path.exists('$SCRIPTS_DIR/../config/settings.yml') else {}
+nodes = user.get('infrastructure', {}).get('nodes', []) or defaults['infrastructure']['nodes']
+print(' '.join([n['ip'] for n in nodes]))
+"))
 
 success=true
 

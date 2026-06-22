@@ -51,12 +51,6 @@
 
 - name: Generate genesis and keys locally on the controller
   shell: "python3 '{{ playbook_dir }}/../config/generate_besu_config.py'"
-  environment:
-    BESU_LAB_VERSION: "{{ besu_version }}"
-    BESU_LAB_CHAIN_ID: "{{ besu_chain_id }}"
-    BESU_LAB_BLOCK_PERIOD_SECONDS: "{{ besu_block_period_seconds }}"
-    BESU_LAB_REQUEST_TIMEOUT_SECONDS: "{{ besu_request_timeout_seconds }}"
-    BESU_LAB_VALIDATOR_COUNT: "{{ groups['validators'] | length }}"
   delegate_to: localhost
   run_once: true
   register: gen_result
@@ -81,31 +75,6 @@
   when: genesis_copy.changed
   notify: Restart besu
 
-- name: Copy validator private and public keys
-  copy:
-    src: "/tmp/besu-dist/{{ inventory_hostname }}/{{ item }}"
-    dest: "/opt/besu/data/{{ item }}"
-    owner: besu
-    group: besu
-    mode: '0600'
-  with_items:
-    - key
-    - key.pub
-  when: inventory_hostname in groups['validators']
-  become: yes
-  notify: Restart besu
-
-- name: Slurp node public key for bootnode configuration
-  slurp:
-    src: /opt/besu/data/key.pub
-  register: slurped_pubkey
-  when: inventory_hostname in groups['validators']
-  become: yes
-
-- name: Set facts for key contents
-  set_fact:
-    node_pubkey: "{{ slurped_pubkey['content'] | b64decode | trim if inventory_hostname in groups['validators'] else '' }}"
-
 - name: Distribute node config.toml
   template:
     src: config.toml.j2
@@ -125,10 +94,3 @@
   notify:
     - Reload systemd
     - Restart besu
-
-- name: Start and enable Besu service
-  service:
-    name: besu
-    state: started
-    enabled: yes
-  become: yes

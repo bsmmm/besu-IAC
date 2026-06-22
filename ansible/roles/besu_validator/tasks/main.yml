@@ -1,0 +1,13 @@
+---
+- name: Copy validator private and public keys
+  copy:
+    src: "/tmp/besu-dist/{{ inventory_hostname }}/{{ item }}"
+    dest: "/opt/besu/data/{{ item }}"
+    owner: besu
+    group: besu
+    mode: '0600'
+  with_items:
+    - key
+    - key.pub
+  become: yes
+  notify: Restart besu
