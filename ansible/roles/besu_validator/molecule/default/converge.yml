@@ -34,6 +34,13 @@
         - bootnode-1
         - rpc-node-1
 
+- name: Converge — Apply besu_common role to all hosts
+  hosts: all
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: besu_common
+
 - name: Converge — Apply besu_validator role to validators
   hosts: validators
   gather_facts: no

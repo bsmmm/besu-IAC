@@ -13,6 +13,7 @@
     url: "https://github.com/besu-eth/besu/releases/download/{{ besu_version }}/besu-{{ besu_version }}.tar.gz"
     dest: "/tmp/besu-{{ besu_version }}.tar.gz"
     checksum: "{{ besu_tarball_checksum }}"
+    validate_certs: no
   become: yes
 
 - name: Create temporary extraction directory
@@ -46,12 +47,15 @@
     url: "https://github.com/besu-eth/besu/releases/download/{{ besu_version }}/besu-{{ besu_version }}.tar.gz"
     dest: "/tmp/besu-{{ besu_version }}.tar.gz"
     checksum: "{{ besu_tarball_checksum }}"
+    validate_certs: no
   delegate_to: localhost
+  become: no
   run_once: true
 
 - name: Generate genesis and keys locally on the controller
-  shell: "python3 '{{ playbook_dir }}/../config/generate_besu_config.py'"
+  shell: "python3 '{{ role_path }}/../../../config/generate_besu_config.py'"
   delegate_to: localhost
+  become: no
   run_once: true
   register: gen_result
   changed_when: "'Skipping regeneration' not in gen_result.stdout"

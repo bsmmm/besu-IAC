@@ -23,6 +23,7 @@
     state: started
     enabled: yes
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
 - name: Configure Chrony for isolated lab synchronization
   template:
@@ -44,76 +45,72 @@
       10.10.20.14 validator-4
       10.10.20.15 rpc-node
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
-- name: Setup UFW firewall - default deny incoming and enable
-  ufw:
-    state: enabled
-    policy: deny
-    direction: incoming
-  become: yes
+- name: Configure firewall (UFW)
+  block:
+    - name: Setup UFW firewall - default deny incoming and enable
+      community.general.ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
 
-- name: Allow SSH from any network to avoid lockout
-  ufw:
-    rule: allow
-    name: OpenSSH
-  become: yes
+    - name: Allow SSH from any network to avoid lockout
+      community.general.ufw:
+        rule: allow
+        name: OpenSSH
 
-- name: Allow Besu P2P port (30303) on cluster LAN
-  ufw:
-    rule: allow
-    src: "{{ cluster_cidr }}"
-    port: '30303'
-    proto: any
-  become: yes
+    - name: Allow Besu P2P port (30303) on cluster LAN
+      community.general.ufw:
+        rule: allow
+        src: "{{ cluster_cidr }}"
+        port: '30303'
+        proto: any
 
-- name: Allow Besu RPC port (8545) on cluster LAN
-  ufw:
-    rule: allow
-    src: "{{ cluster_cidr }}"
-    port: '8545'
-    proto: tcp
-  become: yes
+    - name: Allow Besu RPC port (8545) on cluster LAN
+      community.general.ufw:
+        rule: allow
+        src: "{{ cluster_cidr }}"
+        port: '8545'
+        proto: tcp
 
-- name: Allow Besu WebSockets port (8546) on cluster LAN
-  ufw:
-    rule: allow
-    src: "{{ cluster_cidr }}"
-    port: '8546'
-    proto: tcp
-  become: yes
+    - name: Allow Besu WebSockets port (8546) on cluster LAN
+      community.general.ufw:
+        rule: allow
+        src: "{{ cluster_cidr }}"
+        port: '8546'
+        proto: tcp
 
-- name: Allow Chrony/NTP from cluster LAN on the primary time source
-  ufw:
-    rule: allow
-    src: "{{ cluster_cidr }}"
-    port: '123'
-    proto: udp
-  become: yes
-  when: inventory_hostname == chrony_primary_host
+    - name: Allow Chrony/NTP from cluster LAN on the primary time source
+      community.general.ufw:
+        rule: allow
+        src: "{{ cluster_cidr }}"
+        port: '123'
+        proto: udp
+      when: inventory_hostname == chrony_primary_host
 
-- name: Allow Node Exporter port on cluster LAN
-  ufw:
-    rule: allow
-    src: "{{ cluster_cidr }}"
-    port: "{{ node_exporter_port | string }}"
-    proto: tcp
-  become: yes
+    - name: Allow Node Exporter port on cluster LAN
+      community.general.ufw:
+        rule: allow
+        src: "{{ cluster_cidr }}"
+        port: "{{ node_exporter_port | string }}"
+        proto: tcp
 
-- name: Allow process-exporter port on cluster LAN
-  ufw:
-    rule: allow
-    src: "{{ cluster_cidr }}"
-    port: "{{ process_exporter_port | string }}"
-    proto: tcp
-  become: yes
+    - name: Allow process-exporter port on cluster LAN
+      community.general.ufw:
+        rule: allow
+        src: "{{ cluster_cidr }}"
+        port: "{{ process_exporter_port | string }}"
+        proto: tcp
 
-- name: Allow Besu metrics port on cluster LAN
-  ufw:
-    rule: allow
-    src: "{{ cluster_cidr }}"
-    port: "{{ besu_metrics_port | string }}"
-    proto: tcp
+    - name: Allow Besu metrics port on cluster LAN
+      community.general.ufw:
+        rule: allow
+        src: "{{ cluster_cidr }}"
+        port: "{{ besu_metrics_port | string }}"
+        proto: tcp
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
 - name: Install Node Exporter from apt
   apt:
@@ -127,11 +124,13 @@
     state: started
     enabled: yes
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
 - name: Download process-exporter binary
   get_url:
     url: "https://github.com/ncabatoff/process-exporter/releases/download/v0.8.2/process-exporter-0.8.2.linux-amd64.tar.gz"
     dest: "/tmp/process-exporter.tar.gz"
+    validate_certs: no
   become: yes
 
 - name: Create process-exporter directory
@@ -201,5 +200,6 @@
     state: started
     enabled: yes
   become: yes
+  when: ansible_virtualization_type != 'docker'
 
 

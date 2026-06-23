@@ -36,6 +36,6 @@ metrics-port={{ besu_metrics_port }}
 # Bootnodes
 bootnodes=[
 {% for host in groups['bootnodes'] %}
-  "enode://{{ lookup('file', '/tmp/besu-dist/' + host + '/key.pub') | trim | replace('0x', '') }}@{{ hostvars[host]['besu_node_ip'] | default(hostvars[host]['ansible_host']) }}:30303"{{ "," if not loop.last else "" }}
+  "enode://{{ lookup('file', '/tmp/besu-dist/' + host + '/key.pub') | trim | replace('0x', '') }}@{{ hostvars[host].get('besu_node_ip') | default(hostvars[host].get('ansible_host', host)) }}:30303"{{ "," if not loop.last else "" }}
 {% endfor %}
 ]
