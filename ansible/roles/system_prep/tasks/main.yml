@@ -1,4 +1,6 @@
 ---
+
+
 - name: Update apt cache and upgrade packages
   apt:
     update_cache: yes
@@ -126,12 +128,20 @@
   become: yes
   when: ansible_virtualization_type != 'docker'
 
-- name: Download process-exporter binary
+- name: "Download process-exporter binary from internet (internet mode)"
   get_url:
     url: "https://github.com/ncabatoff/process-exporter/releases/download/v0.8.2/process-exporter-0.8.2.linux-amd64.tar.gz"
     dest: "/tmp/process-exporter.tar.gz"
     validate_certs: no
   become: yes
+  when: not (local_cache_mode | default(false) | bool)
+
+- name: "Push process-exporter from controller cache (local LAN mode)"
+  copy:
+    src: "{{ cache_dir }}/process-exporter-0.8.2.linux-amd64.tar.gz"
+    dest: "/tmp/process-exporter.tar.gz"
+  become: yes
+  when: local_cache_mode | default(false) | bool
 
 - name: Create process-exporter directory
   file:

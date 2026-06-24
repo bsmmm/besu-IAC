@@ -151,6 +151,73 @@ check_configuration() {
 # Lancer les vérifications
 check_configuration
 
+# -----------------------------------------------------------------------------
+# ÉTAPE 0b : Détection LAN et mode cache local (download-once optimization)
+# -----------------------------------------------------------------------------
+check_local_cache_mode() {
+    log_info "Analyse du réseau pour l'optimisation des téléchargements..."
+
+    local detect_out
+    detect_out=$(python3 "$SCRIPTS_DIR/detect_network.py" 2>/dev/null || echo '{}')
+
+    local already_enabled is_lan recommend reason rtt
+    already_enabled=$(echo "$detect_out" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('already_enabled','false'))" 2>/dev/null || echo "false")
+    is_lan=$(echo "$detect_out"          | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('is_lan','false'))" 2>/dev/null || echo "false")
+    recommend=$(echo "$detect_out"       | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('recommend_cache','false'))" 2>/dev/null || echo "false")
+    reason=$(echo "$detect_out"          | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('reason',''))" 2>/dev/null || echo "")
+    rtt=$(echo "$detect_out"             | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('internet_rtt_ms') or 'N/A')" 2>/dev/null || echo "N/A")
+
+    if [ "$already_enabled" = "True" ] || [ "$already_enabled" = "true" ]; then
+        log_success "Mode cache local ACTIVÉ (persisté dans settings.yml)."
+        export IAC_LOCAL_CACHE=true
+        return
+    fi
+
+    if [ "$is_lan" != "True" ] && [ "$is_lan" != "true" ]; then
+        log_info "Déploiement sur serveurs distants — mode cache local désactivé."
+        export IAC_LOCAL_CACHE=false
+        return
+    fi
+
+    # We are on a LAN — show what we measured
+    echo -e ""
+    echo -e "${YELLOW}┌─────────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${YELLOW}│           Optimisation Réseau Local Disponible                   │${NC}"
+    echo -e "${YELLOW}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo -e "  Tous les VMs sont sur un réseau privé (RFC-1918)."
+    if [ "$rtt" != "None" ] && [ "$rtt" != "N/A" ]; then
+        echo -e "  Latence internet vers github.com : ${YELLOW}${rtt} ms${NC}"
+    else
+        echo -e "  ${RED}github.com est injoignable depuis ce réseau.${NC}"
+    fi
+    echo -e "  Raison : $reason"
+    echo -e ""
+    echo -e "  ${GREEN}Optimisation proposée :${NC}"
+    echo -e "  Les binaires (Besu ~110 MB, process-exporter ~8 MB) seront"
+    echo -e "  téléchargés UNE seule fois sur le contrôleur, puis distribués"
+    echo -e "  à tous les VMs via SSH — au lieu de ${YELLOW}8 téléchargements${NC} séparés."
+    echo -e "  Un proxy APT local (apt-cacher-ng) sera aussi configuré."
+    echo -e ""
+
+    local cache_choice
+    read -p "  Activer le mode cache local ? Ce choix sera mémorisé. [o/N] : " cache_choice
+    case "$cache_choice" in
+        [oO]|[yY]|[oO][uU][iI])
+            log_info "Activation du mode cache local et mise à jour de settings.yml..."
+            python3 "$SCRIPTS_DIR/detect_network.py" --update-settings true
+            export IAC_LOCAL_CACHE=true
+            log_success "Mode cache local activé et persisté dans settings.yml."
+            ;;
+        *)
+            log_info "Mode cache local non activé. Téléchargements directs depuis internet."
+            export IAC_LOCAL_CACHE=false
+            ;;
+    esac
+    echo -e ""
+}
+
+check_local_cache_mode
+
 check_requirements || {
     log_error "La vérification a échoué. Veuillez corriger les erreurs avant de poursuivre."
     exit 1
@@ -207,7 +274,9 @@ export ANSIBLE_SSH_CONTROL_PATH_DIR="${ANSIBLE_SSH_CONTROL_PATH_DIR:-/tmp/ansibl
 export ANSIBLE_SSH_ARGS="${ANSIBLE_SSH_ARGS:--F /dev/null -o ControlMaster=auto -o ControlPersist=60s -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null}"
 export ANSIBLE_LOG_PATH="$(get_setting 'logging.ansible_log_path')"
 mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP" "$ANSIBLE_SSH_CONTROL_PATH_DIR"
-ansible-playbook -i inventory/hosts.ini playbook.yml
+ansible-playbook -i inventory/hosts.ini playbook.yml \
+    -e "local_cache_mode=${IAC_LOCAL_CACHE:-false}"
+
 
 log_success "Configuration logicielle et démarrage du cluster Besu terminés."
 

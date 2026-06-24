@@ -1,0 +1,68 @@
+---
+# cache_manager/tasks/main.yml
+# Downloads all binaries ONCE to the controller when local_cache_mode is true.
+# Nothing happens in internet mode — get_url in the individual roles handles that.
+
+- name: Cache Manager | Skip (internet mode)
+  debug:
+    msg: "local_cache_mode is false — binaries will be downloaded directly on each VM."
+  when: not (local_cache_mode | default(false) | bool)
+
+- when: local_cache_mode | default(false) | bool
+  block:
+    - name: Cache Manager | Ensure local cache directory exists on controller
+      file:
+        path: "{{ cache_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      run_once: true
+      become: no
+
+    # ── Besu tarball ──────────────────────────────────────────────────────────
+    - name: Cache Manager | Download Besu tarball to controller (once)
+      get_url:
+        url: "https://github.com/besu-eth/besu/releases/download/{{ besu_version }}/besu-{{ besu_version }}.tar.gz"
+        dest: "{{ cache_dir }}/besu-{{ besu_version }}.tar.gz"
+        checksum: "{{ besu_tarball_checksum }}"
+        validate_certs: no
+      delegate_to: localhost
+      run_once: true
+      become: no
+      register: besu_cache_download
+      retries: 3
+      delay: 5
+      until: besu_cache_download is succeeded
+
+    - name: Cache Manager | Report Besu tarball status
+      debug:
+        msg: >-
+          Besu {{ besu_version }} tarball
+          {% if besu_cache_download.changed %}downloaded fresh{% else %}already cached{% endif %}
+          at {{ cache_dir }}/besu-{{ besu_version }}.tar.gz
+      run_once: true
+
+    # ── process-exporter tarball ───────────────────────────────────────────────
+    - name: Cache Manager | Download process-exporter to controller (once)
+      get_url:
+        url: "https://github.com/ncabatoff/process-exporter/releases/download/v0.8.2/process-exporter-0.8.2.linux-amd64.tar.gz"
+        dest: "{{ cache_dir }}/process-exporter-0.8.2.linux-amd64.tar.gz"
+        checksum: "sha256:1fde5cc65ed9e9c27fc3b0f19afff3f5526bff3351ddc4429499e25ef75728a4"
+        validate_certs: no
+      delegate_to: localhost
+      run_once: true
+      become: no
+      register: pe_cache_download
+      retries: 3
+      delay: 5
+      until: pe_cache_download is succeeded
+
+    - name: Cache Manager | Report process-exporter status
+      debug:
+        msg: >-
+          process-exporter tarball
+          {% if pe_cache_download.changed %}downloaded fresh{% else %}already cached{% endif %}
+          at {{ cache_dir }}/process-exporter-0.8.2.linux-amd64.tar.gz
+      run_once: true
+
+

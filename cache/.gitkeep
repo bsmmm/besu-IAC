@@ -1,0 +1,3 @@
+# This directory is the local binary cache for LAN-mode deployments.
+# The actual cached files (*.tar.gz) are gitignored.
+# See settings.yml optimization.cache_dir

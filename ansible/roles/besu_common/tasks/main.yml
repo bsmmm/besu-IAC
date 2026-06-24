@@ -8,13 +8,21 @@
     mode: '0755'
   become: yes
 
-- name: Download Besu tarball
+- name: "Download Besu tarball from internet (internet mode)"
   get_url:
     url: "https://github.com/besu-eth/besu/releases/download/{{ besu_version }}/besu-{{ besu_version }}.tar.gz"
     dest: "/tmp/besu-{{ besu_version }}.tar.gz"
     checksum: "{{ besu_tarball_checksum }}"
     validate_certs: no
   become: yes
+  when: not (local_cache_mode | default(false) | bool)
+
+- name: "Push Besu tarball from controller cache (local LAN mode)"
+  copy:
+    src: "{{ cache_dir }}/besu-{{ besu_version }}.tar.gz"
+    dest: "/tmp/besu-{{ besu_version }}.tar.gz"
+  become: yes
+  when: local_cache_mode | default(false) | bool
 
 - name: Create temporary extraction directory
   file:
@@ -42,7 +50,9 @@
     - lib
   become: yes
 
-- name: Download Besu tarball to localhost for configuration generation
+# NOTE: In local_cache_mode the tarball is already on the controller (downloaded
+# by cache_manager). In internet mode we download it here for generate_besu_config.py.
+- name: Download Besu tarball to localhost for configuration generation (internet mode only)
   get_url:
     url: "https://github.com/besu-eth/besu/releases/download/{{ besu_version }}/besu-{{ besu_version }}.tar.gz"
     dest: "/tmp/besu-{{ besu_version }}.tar.gz"
@@ -51,6 +61,18 @@
   delegate_to: localhost
   become: no
   run_once: true
+  when: not (local_cache_mode | default(false) | bool)
+
+- name: Symlink cached Besu tarball for config generation (local LAN mode only)
+  file:
+    src: "{{ cache_dir }}/besu-{{ besu_version }}.tar.gz"
+    dest: "/tmp/besu-{{ besu_version }}.tar.gz"
+    state: link
+    force: yes
+  delegate_to: localhost
+  become: no
+  run_once: true
+  when: local_cache_mode | default(false) | bool
 
 - name: Generate genesis and keys locally on the controller
   shell: "python3 '{{ role_path }}/../../../config/generate_besu_config.py'"

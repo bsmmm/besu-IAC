@@ -25,3 +25,8 @@ besu_metrics_port: "{{ global_settings.monitoring.besu_metrics_port }}"
 chrony_primary_host: "{{ global_settings.monitoring.chrony_primary_host }}"
 chrony_primary_ip: "{{ global_settings.monitoring.chrony_primary_ip }}"
 
+# Download optimization
+local_cache_mode: "{{ global_settings.optimization.local_cache | default(false) }}"
+cache_dir_relative: "{{ global_settings.optimization.cache_dir | default('cache') }}"
+cache_dir: "{{ playbook_dir + '/../' + cache_dir_relative }}"
+

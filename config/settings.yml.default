@@ -58,3 +58,14 @@ logging:
   terraform_log_level: "INFO"
   terraform_log_path: "terraform.log"
 
+# Download Optimization (Local LAN Mode)
+# When local_cache is true, binaries (Besu, process-exporter) are downloaded
+# once to the controller and pushed to all VMs over SSH instead of each VM
+# downloading independently from the internet.
+#
+# This is set automatically the first time you run on a LAN and answer 'yes'
+# to the interactive prompt. You can also set it manually here.
+optimization:
+  local_cache: false
+  cache_dir: "cache"         # relative to repo root; gitignored
+

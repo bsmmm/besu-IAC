@@ -12,8 +12,10 @@
   hosts: all
   gather_facts: yes
   roles:
+    - cache_manager     # Download binaries once to controller when local_cache_mode=true
     - system_prep
     - tls_distributor
+
 
 - name: Deploy common Hyperledger Besu configuration
   hosts: all

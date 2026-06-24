@@ -20,6 +20,10 @@ ansible/.vault_pass
 *.key
 *.pub
 
+# Local binary cache (LAN optimization mode) — directory is tracked, contents are not
+cache/*
+!cache/.gitkeep
+
 # OS/Editor
 .DS_Store
 .idea/
