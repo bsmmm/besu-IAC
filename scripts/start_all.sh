@@ -32,13 +32,13 @@ log_error() {
 
 # 1. Start the KVM/libvirt virtual machines
 log_info "Starting KVM/libvirt virtual machines..."
-nodes=(
-    "validator-1"
-    "validator-2"
-    "validator-3"
-    "validator-4"
-    "rpc-node"
-)
+nodes=($(python3 -c "
+import yaml, os
+defaults = yaml.safe_load(open('$REPO_ROOT/config/settings.yml.default'))
+user = yaml.safe_load(open('$REPO_ROOT/config/settings.yml')) if os.path.exists('$REPO_ROOT/config/settings.yml') else {}
+nodes = user.get('infrastructure', {}).get('nodes', []) or defaults['infrastructure']['nodes']
+print(' '.join([n['name'] for n in nodes]))
+"))
 
 for node in "${nodes[@]}"; do
     if virsh -c qemu:///system dominfo "$node" >/dev/null 2>&1; then
