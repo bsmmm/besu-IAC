@@ -23,7 +23,18 @@ Assurez-vous que l'hôte de déploiement dispose de toutes les dépendances requ
 
 ---
 
-## Étape 3 : Exécution du Déploiement Complet
+## Étape 3 : Configuration de l'environnement de développement (Hooks Git)
+
+Si vous prévoyez de modifier le code (notamment les rôles Ansible), il est **fortement recommandé** d'installer le hook `pre-commit` local. Ce hook exécutera automatiquement les tests Molecule avant chaque commit pour garantir la stabilité du code.
+
+Exécutez le script d'installation fourni à la racine du projet :
+```bash
+./scripts/install-hooks.sh
+```
+
+---
+
+## Étape 4 : Exécution du Déploiement Complet
 
 Le déploiement complet est entièrement orchestré de manière interactive par le script global :
 ```bash
@@ -35,7 +46,7 @@ Si le script détecte que `config/settings.yml` est manquant, il vous demandera 
 
 ---
 
-## Étape 4 : Déploiement Manuel Étape par Étape (Optionnel)
+## Étape 5 : Déploiement Manuel Étape par Étape (Optionnel)
 
 Si vous préférez exécuter les composants individuellement :
 

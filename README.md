@@ -23,6 +23,15 @@ Pour des instructions de configuration détaillées et des spécifications, veui
 * **[Prérequis Système](docs/04-requirements.md)** : Dépendances des paquets, configuration réseau et permissions requises sur l'hôte Debian 13.
 * **[Opérations Réseau LAN](docs/05-operations-reseau-lan.md)** : Guide d'architecture et d'optimisation du réseau de l'hyperviseur KVM.
 
+## Pour les Développeurs (Tests & Hooks)
+
+Si vous clonez ce dépôt pour modifier le code (notamment les rôles Ansible), vous **devez** installer le hook Git de pré-commit local. Ce hook s'assure que les tests de conformité (Molecule) sont exécutés automatiquement avant chaque commit.
+
+```bash
+# À exécuter une seule fois juste après le git clone
+./scripts/install-hooks.sh
+```
+
 ## Lancement Rapide
 
 Le déploiement complet automatisé peut être démarré avec le script global interactif à la racine :
